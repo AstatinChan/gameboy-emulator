@@ -78,6 +78,7 @@ fn main() {
     let mut was_previously_halted = false;
 
     let mut last_ram_bank_enabled = false;
+    let mut now = SystemTime::now();
 
     loop {
         if was_previously_halted && !state.mem.halt {
@@ -85,7 +86,6 @@ fn main() {
             halt_time = 0;
         }
         was_previously_halted = state.mem.halt;
-        let now = SystemTime::now();
         let c = if !state.mem.halt {
             exec_opcode(&mut state).unwrap()
         } else {
@@ -127,7 +127,8 @@ fn main() {
             }
 
             nanos_sleep =
-                nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as i128;
+                 nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as i128;
+            now = SystemTime::now();
 
             if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
                 println!("Saving to \"{}\"...", save_file);
