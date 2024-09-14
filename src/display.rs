@@ -29,7 +29,7 @@ pub enum DisplayInterrupt {
 
 #[derive(Debug)]
 pub struct Display {
-    window: Window,
+    pub window: Window,
     framebuffer: [u32; 160 * 144],
     bg_buffer: [u8; 160 * 144],
 
@@ -64,7 +64,8 @@ impl Display {
         Self {
             window: Window::new(
                 "Gameboy Emulator",
-                512, 461,
+                512,
+                461,
                 /* 1200, 1080, */
                 WindowOptions::default(),
             )
