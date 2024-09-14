@@ -1,3 +1,4 @@
+use crate::serial::Serial;
 use crate::state::{MemError, Memory};
 
 impl Memory {
@@ -13,6 +14,8 @@ impl Memory {
                     (self.joypad_reg & 0xf) | 0b11100000
                 }
             }
+            0x01 => self.serial_data,
+            0x02 => self.serial_control,
             0x04 => self.div,
             0x40 => self.display.lcdc,
             0x42 => self.display.viewport_y,
@@ -57,7 +60,7 @@ impl Memory {
                 }
             }
             _ => {
-                // println!("Reading from 0xff{:02x} not implemented yet", addr);
+                println!("Reading from 0xff{:02x} not implemented yet", addr);
                 self.io[addr as usize]
             }
         }
@@ -67,6 +70,19 @@ impl Memory {
         match addr {
             0x00 => {
                 self.joypad_is_action = !value & 0b00100000 != 0;
+            }
+            0x01 => {
+                self.serial_data = value;
+            }
+            0x02 => {
+                if value & 0x01 != 0 {
+                    self.serial.set_clock_master(true);
+                    println!("Set as master");
+                } else if value & 0x01 != 0 {
+                    self.serial.set_clock_master(false);
+                    println!("Set as slave");
+                }
+                self.serial_control = value;
             }
             0x04 => {
                 self.div = 0;
@@ -236,7 +252,7 @@ impl Memory {
                 }
             }
             _ => {
-                if addr >= 0x4d {
+                if addr != 0x25 && addr != 0x24 && addr != 0x26 && addr < 0x30 && addr > 0x3f {
                     println!(
                         "Writing to 0xff{:02x} not implemented yet ({:02x})",
                         addr, value

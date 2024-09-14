@@ -1,5 +1,5 @@
 use crate::display::DisplayInterrupt;
-use crate::opcodes;
+use crate::serial::Serial;
 use crate::state::{GBState, MemError};
 
 const TIMA_TIMER_SPEEDS: [u64; 4] = [1024, 16, 64, 256];
@@ -10,7 +10,7 @@ impl GBState {
             let interrupts = self.mem.io[0x0f] & self.mem.interrupts_register & 0b11111;
             for i in 0..5 {
                 if interrupts & (1 << i) != 0 {
-                    opcodes::push(self, self.cpu.pc)?;
+                    self.push(self.cpu.pc)?;
 
                     self.mem.ime = false;
                     self.cpu.pc = 0x40 + (i << 3);

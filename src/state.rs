@@ -1,6 +1,7 @@
 use crate::audio::Audio;
 use crate::consts::{PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
+use crate::serial::Serial;
 use std::fs::File;
 use std::io::{Read, Write};
 
@@ -127,6 +128,8 @@ pub struct Memory {
 
     pub audio: Audio,
 
+    pub serial: Box<dyn Serial>,
+
     pub ime: bool,
 
     pub div: u8,
@@ -146,6 +149,10 @@ pub struct Memory {
     pub timer_enabled: bool,
 
     pub timer_speed: u8,
+
+    pub serial_data: u8,
+
+    pub serial_control: u8,
 }
 
 #[derive(Debug)]
@@ -155,8 +162,13 @@ pub enum MemError {
     NotUsable,
 }
 
+mod serial_control_flags {
+    pub const CLOCK_SELECT: u8 = 0b1;
+    pub const TRANSFER_ENABLE: u8 = 0b10000000;
+}
+
 impl Memory {
-    pub fn new() -> Self {
+    pub fn new(serial: Box<dyn Serial>) -> Self {
         let mut display = Display::new();
 
         display.cls();
@@ -190,6 +202,32 @@ impl Memory {
             tma: 0,
             timer_enabled: false,
             timer_speed: 0,
+            serial,
+            serial_control: 0,
+            serial_data: 0,
+        }
+    }
+
+    pub fn update_serial(&mut self) {
+        if self.serial.new_transfer() {
+            println!("TRANSFER ENABLED");
+            self.serial_control |= serial_control_flags::TRANSFER_ENABLE;
+        }
+
+        if self.serial.clock_master() {
+            self.serial_control |= serial_control_flags::CLOCK_SELECT;
+        } else {
+            self.serial_control &= !serial_control_flags::CLOCK_SELECT;
+        }
+
+        if (self.serial_control & serial_control_flags::CLOCK_SELECT != 0
+            || self.serial.new_transfer())
+            && self.serial_control & serial_control_flags::TRANSFER_ENABLE != 0
+        {
+            self.serial.write(self.serial_data);
+            self.serial_data = self.serial.read();
+            self.serial_control &= !serial_control_flags::TRANSFER_ENABLE;
+            self.io[0x0f] |= 0b1000;
         }
     }
 
@@ -331,8 +369,8 @@ pub struct GBState {
 }
 
 impl GBState {
-    pub fn new() -> Self {
-        let mem = Memory::new();
+    pub fn new(serial: Box<dyn Serial>) -> Self {
+        let mem = Memory::new(serial);
 
         Self {
             cpu: CPU::new(),
