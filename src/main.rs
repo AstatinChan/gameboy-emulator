@@ -20,7 +20,7 @@ struct Cli {
     /// The gameboy rom file
     rom: String,
 
-    /// Setting this saves battery by using thread::sleep instead of spin_sleeping. It can result in lag and inconsistent timing.
+    /// Setting uses more battery and set the CPU to 100% but could sometimes solve inconsistent timing.
     #[arg(long)]
     loop_lock_timing: bool,
 

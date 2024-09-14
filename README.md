@@ -27,14 +27,6 @@ If there is the message `No gamepad found` in the first messages, it means your 
 
 ## CPU Usage
 
-By default the emulator will spin lock instead of using thread::sleep (Bc I'm bad at programming and for some reason I can't manage to get an accurate time using thread::sleep)
-
-If you're on battery or the 100% CPU usage bothers you, you can use the --thread-sleep option, though it might cause some lags and inaccurate timing.
-
-```bash
-emulator <gameboy_rom> --thread-sleep
-```
-
 ## Speed
 
 You can adjust the speed with the `-s` argument
@@ -44,8 +36,33 @@ This command makes it run at 2x speed
 emulator <gameboy_rom> -s 2
 ```
 
+## Keyboard
+
+By default will be from a gamepad. Keyboard can be used by using the `-k` argument.
+
+The keyboard keys are:
+```
+Left, Right, Up, Down => Directional arrow
+Letter A and B => A and B button
+Enter => Start
+Backspace => Select
+```
+
+This command will force the use of the keyboard:
+```bash
+emulator <gameboy_rom> -k
+```
+
+## Timing issues
+
+Timing used to be inaccurate using sleep syscalls. The problem should now be fixed but if the timing is inconsistant on your system you can try to use the `--loop-lock-timing` and see if it is better. Note that using this will set your CPU usage to 100%.
+
+## Serial communication
+
+Serial communication is currently work in progress and doesn't work with basic ROMs but the `--fifo-input` and `--fifo-output` can already be tested by passing files created with mkfifo. If the goal is to allow communication between two gameboy, one gameboy's input should be the other's output.
+
 # Contributing
 
 This emulator is not the fastest one, the most accurate one or the most well made. I'm not even sure in which environment it works (I never tested it on windows). I just made it because it's fun and it's a good way to learn how the gameboy works in detail.
 
-For this reason, I'm not entirely sure what I would do if someone were to open a PR. If you find a bug or want to change something, I would be more confortable if you talked about it with me on stream or [on discord](https://discord.com/invite/XVTCuYJh) before.
+For this reason, I'm not entirely sure what I would do if someone were to open a PR without any previous discussion. If you find a bug or want to change something, I would be more confortable if you talked about it with me on stream or [on discord](https://discord.com/invite/XVTCuYJh) before.
