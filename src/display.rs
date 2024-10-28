@@ -228,22 +228,20 @@ impl Display {
             0
         };
 
-        let y_tile = (self.ly - self.window_y) as usize;
+        let tilemap_y_px = (self.ly - self.window_y) as usize;
+        let y_tile = tilemap_y_px / 8;
+        let tile_y_px = tilemap_y_px % 8;
 
-        for x in 0..32 {
-            if tilemap_pointer + (y_tile / 8) * 32 + x >= 2048 {
+        for lx in 0..32 {
+            let tile_index = y_tile * 32 + lx;
+            if tilemap_pointer + tile_index >= 2048 {
                 return;
             }
-            let tile = self.tilemaps[tilemap_pointer + (y_tile / 8) * 32 + x];
-            if x * 8 + self.window_x as usize - 7 < 160 && self.ly >= self.window_y {
-                self.print_tile(
-                    tile,
-                    x as u8 * 8 + self.window_x - 7,
-                    self.ly,
-                    (y_tile % 8) as usize,
-                    0,
-                );
-            }
+
+            let tile = self.tilemaps[tilemap_pointer + tile_index];
+            let tilemap_x_px = lx as u8 * 8 + self.window_x - 7;
+
+            self.print_tile(tile, tilemap_x_px, self.ly, tile_y_px as usize, 0);
         }
     }
 
