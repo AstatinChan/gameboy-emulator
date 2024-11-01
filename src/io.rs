@@ -17,6 +17,7 @@ impl Memory {
             0x01 => self.serial_data,
             0x02 => self.serial_control,
             0x04 => self.div,
+            0x0f => self.io[0x0f],
             0x40 => self.display.lcdc,
             0x42 => self.display.viewport_y,
             0x43 => self.display.viewport_x,
