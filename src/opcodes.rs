@@ -746,7 +746,11 @@ impl GBState {
             0b011 => match n1 {
                 0b000 => self.jp16(),
                 0b001 => self.op_bitwise(), // Bitwise operations
-                0b010 | 0b011 | 0b100 | 0b101 => unimplemented!(),
+                0b011 | 0b100 | 0b101 => unimplemented!(),
+                0b010 => {
+                    self.cpu.print_debug();
+                    Ok(4)
+                },
                 0b110 => {
                     self.mem.ime = false;
                     Ok(4)

@@ -83,6 +83,19 @@ impl CPU {
             _ => unimplemented!(),
         }
     }
+
+    pub fn print_debug(&self) {
+        println!(
+            "PC: 0x{:04x}, SP: 0x{:04x}, A: 0x{:02x}, BC: 0x{:04x}, DE: 0x{:04x}, HL: 0x{:04x}, F: 0x{:02x}",
+            self.pc,
+            self.sp,
+            self.r[reg::A as usize],
+            self.r16(reg::BC),
+            self.r16(reg::DE),
+            self.r16(reg::HL),
+            self.r[reg::F as usize],
+        );
+    }
 }
 
 pub struct Memory {
