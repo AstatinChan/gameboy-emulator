@@ -53,6 +53,7 @@ pub struct Display {
 
     pub window_x: u8,
     pub window_y: u8,
+    pub window_internal_line_counter: u8,
 
     last_dt: SystemTime,
 
@@ -64,9 +65,9 @@ impl Display {
         Self {
             window: Window::new(
                 "Gameboy Emulator",
-                512,
-                461,
-                /* 1200, 1080, */
+                512, 461,
+                 /*1200, 1080,*/
+                 /* 160,144, */
                 WindowOptions::default(),
             )
             .unwrap(),
@@ -86,6 +87,7 @@ impl Display {
             ly: 0,
             window_x: 0,
             window_y: 0,
+            window_internal_line_counter: 0,
             last_dt: SystemTime::now(),
             stat: 0,
             lyc: 0,
@@ -228,21 +230,29 @@ impl Display {
             0
         };
 
+        if self.ly < self.window_y {
+            return;
+        }
+
         let tilemap_y_px = (self.ly - self.window_y) as usize;
         let y_tile = tilemap_y_px / 8;
         let tile_y_px = tilemap_y_px % 8;
 
         for lx in 0..32 {
             let tile_index = y_tile * 32 + lx;
-            if tilemap_pointer + tile_index >= 2048 {
+            if tilemap_pointer + tile_index as usize >= 2048 {
                 return;
             }
 
-            let tile = self.tilemaps[tilemap_pointer + tile_index];
+            let tile = self.tilemaps[(tilemap_pointer + tile_index) as usize];
+            if (lx as u8 * 8) as u32 + (self.window_x - 7) as u32 > 255 {
+                continue;
+            }
             let tilemap_x_px = lx as u8 * 8 + self.window_x - 7;
 
             self.print_tile(tile, tilemap_x_px, self.ly, tile_y_px as usize, 0);
         }
+        self.window_internal_line_counter += 1;
     }
 
     pub fn print_obj(&mut self) {
@@ -340,6 +350,8 @@ impl Display {
                     self.update();
                     self.last_dt = SystemTime::now();
                 }
+
+                self.window_internal_line_counter = 0;
             }
             if self.ly < 0x90 && (self.lcd_interrupt_mode == 0 || self.lcd_interrupt_mode == 2) {
                 ret_interrupt = DisplayInterrupt::Stat;
