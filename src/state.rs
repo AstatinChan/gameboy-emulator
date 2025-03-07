@@ -43,6 +43,8 @@ pub struct CPU {
 
     pub pc: u16, // program counter
     pub sp: u16, // stack pointer
+
+    pub dbg_cycle_counter: u64,
 }
 
 impl CPU {
@@ -52,6 +54,8 @@ impl CPU {
 
             pc: PROGRAM_START_ADDRESS,
             sp: STACK_START_ADDRESS,
+
+            dbg_cycle_counter: 0,
         }
     }
 
@@ -84,9 +88,9 @@ impl CPU {
         }
     }
 
-    pub fn print_debug(&self) {
+    pub fn print_debug(&mut self) {
         println!(
-            "PC: 0x{:04x}, SP: 0x{:04x}, A: 0x{:02x}, BC: 0x{:04x}, DE: 0x{:04x}, HL: 0x{:04x}, F: 0x{:02x}",
+            "PC: 0x{:04x}, SP: 0x{:04x}, A: 0x{:02x}, BC: 0x{:04x}, DE: 0x{:04x}, HL: 0x{:04x}, F: 0x{:02x}. Since last dbg: {} cycles",
             self.pc,
             self.sp,
             self.r[reg::A as usize],
@@ -94,7 +98,10 @@ impl CPU {
             self.r16(reg::DE),
             self.r16(reg::HL),
             self.r[reg::F as usize],
+            self.dbg_cycle_counter,
         );
+
+        self.dbg_cycle_counter = 0;
     }
 }
 

@@ -1,0 +1,73 @@
+LD SP,$fffe
+
+EmptyVRAM:
+	LD HL, $8000
+	
+	EmptyVRAM.loop:
+		LD A, $00
+		LD (HL+), A
+		LD A, $A0
+		CP H
+		JR NZ, =EmptyVRAM.loop
+
+SetupLogoTile:
+	LD C, $48
+	LD DE, =Logo
+	LD HL, $8010
+	SetupLogoTile.loop:
+		LD A, (DE)
+		LD (HL+), A
+		LD (HL+), A
+		LD (HL+), A
+		LD (HL+), A
+		INC DE
+		DEC C
+		JR NZ, =SetupLogoTile.loop
+
+LD A, $01
+
+LogoFirstLine:
+	LD HL, $9800
+	LogoFirstLine.loop:
+		LD (HL+), A
+		INC A
+		CP $0a
+		JR NZ, =LogoFirstLine.loop
+
+LogoSecondLine:
+	LD HL, $9820
+	LogoSecondLine.loop:
+		LD (HL+), A
+		INC A
+		CP $13
+		JR NZ, =LogoSecondLine.loop
+
+LD A, $fc
+LD ($47), A
+
+LD A,$91
+LD ($40), A
+
+Loop:
+	JR =Loop
+Logo:
+.DB $3f, $ff, $f0, $f0
+.DB $c0, $f0, $f0, $f0
+.DB $00, $00, $00, $fe
+.DB $00, $1e, $7f, $1e
+.DB $00, $00, $80, $1f
+.DB $00, $01, $07, $e1
+.DB $03, $e3, $f8, $e3
+.DB $c0, $c0, $00, $cf
+.DB $00, $01, $01, $3c
+.DB $ff, $f0, $f0, $f0
+.DB $f3, $f0, $f0, $f0
+.DB $e0, $fe, $1f, $fe
+.DB $1e, $1e, $9e, $1e
+.DB $00, $1f, $78, $1f
+.DB $79, $f9, $79, $f9
+.DB $e3, $e3, $e3, $e3
+.DB $cf, $cf, $cf, $cf
+.DB $cf, $0f, $0f, $0f
+
+.PADTO 0x100

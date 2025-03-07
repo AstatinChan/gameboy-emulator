@@ -22,15 +22,9 @@ impl Memory {
             0x42 => self.display.viewport_y,
             0x43 => self.display.viewport_x,
             0x41 => {
-                let mut ret = match self.display.lcd_interrupt_mode {
-                    3 => 0b01000000,
-                    2 => 0b00100000,
-                    1 => 0b00010000,
-                    0 => 0b00001000,
-                    _ => 0,
-                };
+                let mut ret = 0b00001000 << self.display.lcd_interrupt_mode;
 
-                ret |= if self.display.ly > 0x90 {
+                ret |= if self.display.ly >= 0x90 {
                     1
                 } else if self.display.stat < 80 {
                     2

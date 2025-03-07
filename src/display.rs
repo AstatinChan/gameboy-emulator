@@ -2,7 +2,7 @@
 
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::MemError;
-use minifb::{Window, WindowOptions};
+use minifb::{Window, WindowOptions, ScaleMode, Scale};
 use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
@@ -68,7 +68,13 @@ impl Display {
                 512, 461,
                  /*1200, 1080,*/
                  /* 160,144, */
-                WindowOptions::default(),
+                WindowOptions {
+                    // borderless: true,
+                    // resize: true,
+                    // scale_mode: ScaleMode::AspectRatioStretch,
+                    // scale: Scale::FitScreen,
+                    ..WindowOptions::default()
+                },
             )
             .unwrap(),
             framebuffer: [0; 160 * 144],

@@ -2,3 +2,4 @@ target/
 debug.txt
 assets/cgb_boot.bin
 assets/dmg_boot.bin
+*.record

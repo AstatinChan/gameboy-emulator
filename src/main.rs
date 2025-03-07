@@ -8,7 +8,7 @@ pub mod opcodes;
 pub mod serial;
 pub mod state;
 
-use crate::gamepad::{Gamepad, Input};
+use crate::gamepad::{Gamepad, Input, Keyboard, GamepadRecorder, GamepadReplay};
 use crate::state::GBState;
 use clap::Parser;
 use std::time::SystemTime;
@@ -30,6 +30,12 @@ struct Cli {
     #[arg(long)]
     fifo_output: Option<String>,
 
+    #[arg(long)]
+    record_input: Option<String>,
+
+    #[arg(long)]
+    replay_input: Option<String>,
+
     #[arg(short, long, default_value_t = false)]
     keyboard: bool,
 
@@ -39,6 +45,7 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
+    let mut total_cycle_counter: u128 = 0;
 
     println!("Initializing Gamepad...");
 
@@ -52,7 +59,6 @@ fn main() {
         _ => panic!("If using fifo serial, both input and output should be set"),
     };
 
-    let mut gamepad = Gamepad::new();
 
     let save_file = format!("{}.sav", &cli.rom);
 
@@ -64,6 +70,18 @@ fn main() {
             save_file
         );
     }
+
+    let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
+        Box::new(GamepadReplay::new(record_file))
+    } else if cli.keyboard {
+        Box::new(Keyboard::new())
+    } else {
+        Box::new(Gamepad::new())
+    };
+
+    if let Some(record_file) = cli.record_input {
+        gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
+    };
 
     let mut nanos_sleep: i128 = 0;
     let mut halt_time = 0;
@@ -85,6 +103,9 @@ fn main() {
             4
         };
 
+        state.cpu.dbg_cycle_counter += c;
+        total_cycle_counter += c as u128;
+
         state.div_timer(c);
         state.tima_timer(c);
         state.update_display_interrupts(c);
@@ -93,19 +114,12 @@ fn main() {
 
         nanos_sleep += c as i128 * (consts::CPU_CYCLE_LENGTH_NANOS as f32 / cli.speed) as i128;
         if nanos_sleep > 0 {
-            let (action_button_reg, direction_button_reg) = if cli.keyboard {
-                (
-                    state.mem.display.get_action_gamepad_reg(),
-                    state.mem.display.get_direction_gamepad_reg(),
-                )
-            } else {
-                gamepad.update_events();
+            gamepad.update_events(total_cycle_counter, &state);
 
-                (
+            let (action_button_reg, direction_button_reg) = (
                     gamepad.get_action_gamepad_reg(),
                     gamepad.get_direction_gamepad_reg(),
-                )
-            };
+                );
             // gamepad.check_special_actions(&mut state.is_debug);
 
             if state.mem.joypad_is_action
