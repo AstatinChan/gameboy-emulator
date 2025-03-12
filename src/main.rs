@@ -116,7 +116,7 @@ fn main() {
 
         nanos_sleep += c as i128 * (consts::CPU_CYCLE_LENGTH_NANOS as f32 / cli.speed) as i128;
         if nanos_sleep > 0 {
-            gamepad.update_events(total_cycle_counter, &state);
+            gamepad.update_events(total_cycle_counter);
 
             let (action_button_reg, direction_button_reg) = (
                 gamepad.get_action_gamepad_reg(),
