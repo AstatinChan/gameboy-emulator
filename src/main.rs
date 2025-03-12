@@ -7,8 +7,9 @@ pub mod io;
 pub mod opcodes;
 pub mod serial;
 pub mod state;
+pub mod window;
 
-use crate::gamepad::{Gamepad, Input, Keyboard, GamepadRecorder, GamepadReplay};
+use crate::gamepad::{Gamepad, GamepadRecorder, GamepadReplay, Input, Keyboard};
 use crate::state::GBState;
 use clap::Parser;
 use std::time::SystemTime;
@@ -59,7 +60,6 @@ fn main() {
         _ => panic!("If using fifo serial, both input and output should be set"),
     };
 
-
     let save_file = format!("{}.sav", &cli.rom);
 
     state.mem.load_rom(&cli.rom).unwrap();
@@ -71,10 +71,12 @@ fn main() {
         );
     }
 
+    let mut window = window::Window::new().unwrap();
+
     let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
         Box::new(GamepadReplay::new(record_file))
     } else if cli.keyboard {
-        Box::new(Keyboard::new())
+        Box::new(Keyboard::new(window.keys.clone()))
     } else {
         Box::new(Gamepad::new())
     };
@@ -117,9 +119,15 @@ fn main() {
             gamepad.update_events(total_cycle_counter, &state);
 
             let (action_button_reg, direction_button_reg) = (
-                    gamepad.get_action_gamepad_reg(),
-                    gamepad.get_direction_gamepad_reg(),
-                );
+                gamepad.get_action_gamepad_reg(),
+                gamepad.get_direction_gamepad_reg(),
+            );
+
+            if let Some(fb) = state.mem.display.redraw_request {
+                if let Some(window::WindowSignal::Exit) = window.update(&fb) {
+                    break;
+                }
+            }
             // gamepad.check_special_actions(&mut state.is_debug);
 
             if state.mem.joypad_is_action

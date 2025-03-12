@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub trait Serial {
@@ -35,7 +34,7 @@ impl Serial for UnconnectedSerial {
         false
     }
 
-    fn set_clock_master(&mut self, clock_master: bool) {}
+    fn set_clock_master(&mut self, _clock_master: bool) {}
 }
 
 pub struct FIFOPackage {
@@ -94,10 +93,12 @@ impl FIFOSerial {
 impl Serial for FIFOSerial {
     fn write(&mut self, byte: u8) {
         println!("Writing {} to fifo serial", byte);
-        self.output.send(FIFOPackage {
+        if let Err(err) = self.output.send(FIFOPackage {
             t: true,
             value: byte,
-        });
+        }) {
+            eprintln!("Error while sending serial package: {}", err);
+        };
     }
 
     fn read(&mut self) -> u8 {
@@ -128,9 +129,11 @@ impl Serial for FIFOSerial {
 
     fn set_clock_master(&mut self, clock_master: bool) {
         self.clock_master = clock_master;
-        self.output.send(FIFOPackage {
+        if let Err(err) = self.output.send(FIFOPackage {
             t: false,
             value: (if clock_master { 1 } else { 0 }),
-        });
+        }) {
+            eprintln!("Error while sending serial package: {}", err);
+        }
     }
 }

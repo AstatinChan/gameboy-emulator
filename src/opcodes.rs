@@ -1,4 +1,3 @@
-use crate::serial::Serial;
 use crate::state::{flag, reg, GBState, MemError};
 
 // The opcodes functions are returning the number of cycles used.

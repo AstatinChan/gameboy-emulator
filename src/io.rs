@@ -1,4 +1,3 @@
-use crate::serial::Serial;
 use crate::state::{MemError, Memory};
 
 impl Memory {

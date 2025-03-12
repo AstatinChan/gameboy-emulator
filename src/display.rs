@@ -2,7 +2,6 @@
 
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use crate::state::MemError;
-use minifb::{Window, WindowOptions, ScaleMode, Scale};
 use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
@@ -29,7 +28,6 @@ pub enum DisplayInterrupt {
 
 #[derive(Debug)]
 pub struct Display {
-    pub window: Window,
     framebuffer: [u32; 160 * 144],
     bg_buffer: [u8; 160 * 144],
 
@@ -58,25 +56,13 @@ pub struct Display {
     last_dt: SystemTime,
 
     pub stat: u64,
+
+    pub redraw_request: Option<[u32; 160 * 144]>,
 }
 
 impl Display {
     pub fn new() -> Self {
         Self {
-            window: Window::new(
-                "Gameboy Emulator",
-                512, 461,
-                 /*1200, 1080,*/
-                 /* 160,144, */
-                WindowOptions {
-                    // borderless: true,
-                    // resize: true,
-                    // scale_mode: ScaleMode::AspectRatioStretch,
-                    // scale: Scale::FitScreen,
-                    ..WindowOptions::default()
-                },
-            )
-            .unwrap(),
             framebuffer: [0; 160 * 144],
             bg_buffer: [0; 160 * 144],
             tiledata: [0; 0x3000],
@@ -99,17 +85,12 @@ impl Display {
             lyc: 0,
             cgb_mode: false,
             lcd_interrupt_mode: 0xff,
+            redraw_request: None,
         }
     }
 
     pub fn cls(&mut self) {
         self.framebuffer = [COLORS[0]; 160 * 144];
-    }
-
-    pub fn update(&mut self) {
-        self.window
-            .update_with_buffer(&self.framebuffer, 160, 144)
-            .unwrap();
     }
 
     pub fn color_palette(&self, color_byte: u8, palette: u8, cgb_mode: bool) -> u32 {
@@ -353,7 +334,7 @@ impl Display {
                     .as_micros()
                     > DISPLAY_UPDATE_SLEEP_TIME_MICROS as u128
                 {
-                    self.update();
+                    self.redraw_request = Some(self.framebuffer);
                     self.last_dt = SystemTime::now();
                 }
 

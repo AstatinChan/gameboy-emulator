@@ -1,9 +1,10 @@
 use crate::state;
+use crate::window::Keys;
 use gilrs::{Button, GamepadId, Gilrs};
 use state::GBState;
 use std::fs::File;
-use std::io::{Write, Read, ErrorKind};
-use minifb::Key;
+use std::io::{ErrorKind, Read, Write};
+use winit::keyboard::KeyCode;
 
 pub struct Gamepad {
     gilrs: Gilrs,
@@ -18,7 +19,7 @@ pub trait Input {
 
 impl Gamepad {
     pub fn new() -> Self {
-        let mut gilrs = Gilrs::new().unwrap();
+        let gilrs = Gilrs::new().unwrap();
 
         let gamepad_id = if let Some((gamepad_id, _gamepad)) = gilrs.gamepads().next() {
             println!("Found Gamepad id: {:?}", gamepad_id);
@@ -99,36 +100,39 @@ impl Input for Gamepad {
 }
 
 pub struct Keyboard {
+    keys: Keys,
     action_reg: u8,
     direction_reg: u8,
 }
 
 impl Keyboard {
-    pub fn new() -> Self {
+    pub fn new(keys: Keys) -> Self {
         Self {
+            keys,
             action_reg: 0,
-            direction_reg: 0
+            direction_reg: 0,
         }
     }
 }
 
 impl Input for Keyboard {
-    fn update_events(&mut self, _cycles: u128, state: &GBState) {
+    fn update_events(&mut self, _cycles: u128, _state: &GBState) {
         let mut res = 0xf;
+        let keys = self.keys.borrow();
 
-        if state.mem.display.window.is_key_down(Key::A) {
+        if keys.contains(&KeyCode::KeyA) {
             res &= 0b1110;
         }
 
-        if state.mem.display.window.is_key_down(Key::B) {
+        if keys.contains(&KeyCode::KeyB) {
             res &= 0b1101;
         }
 
-        if state.mem.display.window.is_key_down(Key::Backspace) {
+        if keys.contains(&KeyCode::Backspace) {
             res &= 0b1011;
         }
 
-        if state.mem.display.window.is_key_down(Key::Enter) {
+        if keys.contains(&KeyCode::Enter) {
             res &= 0b0111;
         }
 
@@ -136,19 +140,19 @@ impl Input for Keyboard {
 
         let mut res = 0xf;
 
-        if state.mem.display.window.is_key_down(Key::Right) {
+        if keys.contains(&KeyCode::ArrowRight) {
             res &= 0b1110;
         }
 
-        if state.mem.display.window.is_key_down(Key::Left) {
+        if keys.contains(&KeyCode::ArrowLeft) {
             res &= 0b1101;
         }
 
-        if state.mem.display.window.is_key_down(Key::Up) {
+        if keys.contains(&KeyCode::ArrowUp) {
             res &= 0b1011;
         }
 
-        if state.mem.display.window.is_key_down(Key::Down) {
+        if keys.contains(&KeyCode::ArrowDown) {
             res &= 0b0111;
         }
 
@@ -190,11 +194,17 @@ impl Input for GamepadRecorder {
         let new_direction_reg = self.input.get_direction_gamepad_reg();
 
         if self.action_reg != new_action_reg || self.direction_reg != new_direction_reg {
-            println!("input update on cycle {} ! 0x{:02x} 0x{:02x}", cycles, new_action_reg, new_direction_reg);
+            println!(
+                "input update on cycle {} ! 0x{:02x} 0x{:02x}",
+                cycles, new_action_reg, new_direction_reg
+            );
             if let Err(err) = self.record_file.write_all(&cycles.to_le_bytes()) {
                 eprintln!("Failed to write to record file: {}", err);
             };
-            if let Err(err) = self.record_file.write_all(&[new_action_reg, new_direction_reg]) {
+            if let Err(err) = self
+                .record_file
+                .write_all(&[new_action_reg, new_direction_reg])
+            {
                 eprintln!("Failed to write to record file: {}", err);
             }
             if let Err(err) = self.record_file.flush() {
@@ -249,7 +259,9 @@ impl Input for GamepadReplay {
             if cycles > next_cycle_update {
                 let mut inputs: [u8; 2] = [0; 2];
 
-                self.record_file.read_exact(&mut inputs).expect("Unexpected EOF after cycle but before input");
+                self.record_file
+                    .read_exact(&mut inputs)
+                    .expect("Unexpected EOF after cycle but before input");
 
                 self.action_reg = inputs[0];
                 self.direction_reg = inputs[1];
@@ -273,4 +285,3 @@ impl Input for GamepadReplay {
         self.direction_reg
     }
 }
-
