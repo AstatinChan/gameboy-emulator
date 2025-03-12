@@ -19,7 +19,7 @@ emulator <gameboy_rom>
 
 ## Gamepad
 
-This emulator needs a gamepad to be connected to play. There is no keyboard option for now.
+If you do not set the `-k` cli parameter, the emulator will try to find a gamepad.
 
 If there is the message `No gamepad found` in the first messages, it means your gamepad hasn't been detected or initialized properly. Connect a gamepad and restart the emulator to fix it. It should print `Found Gamepad id: GamepadId(0)` instead.
 
