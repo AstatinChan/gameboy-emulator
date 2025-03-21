@@ -1,3 +1,4 @@
+; .INCLUDE "minimal.gbasm"
 LD SP,$fffe
 
 EmptyVRAM:
@@ -22,34 +23,110 @@ SetupLogoTile:
 		LD (HL+), A
 		INC DE
 		DEC C
+		LD A, $00
+		CP C
 		JR NZ, =SetupLogoTile.loop
+
+	LD A, $01
+	LD ($8092), A
+	LD ($8093), A
+
+	LD C, $10
+	SetupHeart.loop:
+		LD A, (DE)
+		LD (HL+), A
+		LD (HL+), A
+		INC DE
+		DEC C
+		LD A, $00
+		CP C
+		JR NZ, =SetupHeart.loop
 
 LD A, $01
 
 LogoFirstLine:
-	LD HL, $9800
+	LD HL, $9905
 	LogoFirstLine.loop:
 		LD (HL+), A
 		INC A
 		CP $0a
 		JR NZ, =LogoFirstLine.loop
 
+	LD (HL), $14
+
 LogoSecondLine:
-	LD HL, $9820
+	LD HL, $9925
 	LogoSecondLine.loop:
 		LD (HL+), A
 		INC A
 		CP $13
 		JR NZ, =LogoSecondLine.loop
 
+LD A, $13
+LD ($98ee), A
+
+; Palette
 LD A, $fc
 LD ($47), A
 
-LD A,$91
+; LCD on
+LD A, $91
+LD ($42), A
 LD ($40), A
 
+; Sound on
+LD A, $80
+LD ($26), A
+
+; Channel 1 lengths
+LD ($11), A
+
+LD A, $f3
+; Channel 1 volume & envelope
+LD ($12), A
+
+; Panning
+LD ($25), A
+
+LD A, $77
+LD ($24), A
+
+LD C, $58
 Loop:
-	JR =Loop
+	LD B, $12
+	.Wait_VBlank:
+		LD A, ($44)
+		CP $90
+		JR NZ, =.Wait_VBlank
+		DEC B
+		LD A, $00
+		CP B
+		JR NZ, =.Wait_VBlank
+
+	LD A, C
+	LD ($42), A
+	DEC C
+	CP $02
+	LD D, $83
+	CALL Z, =.sound1
+	CP $00
+	JR NZ, =Loop
+	LD D, $c1
+	CALL =.sound1
+
+	.Lock:
+	JP =End
+
+	.sound1:
+		LD E, A
+		LD A, D
+		LD ($13), A
+		LD A, $87
+		LD ($14), A
+		LD A, E
+		RET
+
+
 Logo:
 .DB $3f, $ff, $f0, $f0
 .DB $c0, $f0, $f0, $f0
@@ -70,4 +147,11 @@ Logo:
 .DB $cf, $cf, $cf, $cf
 .DB $cf, $0f, $0f, $0f
 
-.PADTO 0x100
+Heart:
+.DB $00, $00, $00, $00, $00, $00, $00, $7c
+.DB $82, $29, $55, $45, $29, $11, $82, $7c
+
+.PADTO 0xfc
+End:
+	LD A, $01
+	LD ($50), A

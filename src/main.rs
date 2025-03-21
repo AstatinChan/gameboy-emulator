@@ -42,6 +42,9 @@ struct Cli {
 
     #[arg(short, long, default_value_t = 1.0)]
     speed: f32,
+
+    #[arg(short, long, default_value_t = false)]
+    debug: bool,
 }
 
 fn main() {
@@ -85,12 +88,15 @@ fn main() {
         gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
     };
 
-    let mut nanos_sleep: i128 = 0;
+    state.is_debug = cli.debug;
+
+    let mut nanos_sleep: f64 = 0.0;
     let mut halt_time = 0;
     let mut was_previously_halted = false;
 
     let mut last_ram_bank_enabled = false;
     let mut now = SystemTime::now();
+    let mut next_precise_gamepad_update: Option<u128> = None;
 
     loop {
         if was_previously_halted && !state.mem.halt {
@@ -114,21 +120,15 @@ fn main() {
         state.check_interrupts().unwrap();
         state.mem.update_serial();
 
-        nanos_sleep += c as i128 * (consts::CPU_CYCLE_LENGTH_NANOS as f32 / cli.speed) as i128;
-        if nanos_sleep > 0 {
-            gamepad.update_events(total_cycle_counter);
+        nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / cli.speed as f64) as f64;
+
+        if nanos_sleep >= 0.0 || next_precise_gamepad_update.map_or(false, |c| (c >= total_cycle_counter)) {
+            next_precise_gamepad_update = gamepad.update_events(total_cycle_counter);
 
             let (action_button_reg, direction_button_reg) = (
                 gamepad.get_action_gamepad_reg(),
                 gamepad.get_direction_gamepad_reg(),
             );
-
-            if let Some(fb) = state.mem.display.redraw_request {
-                if let Some(window::WindowSignal::Exit) = window.update(&fb) {
-                    break;
-                }
-            }
-            // gamepad.check_special_actions(&mut state.is_debug);
 
             if state.mem.joypad_is_action
                 && (action_button_reg & (state.mem.joypad_reg >> 4)) != (state.mem.joypad_reg >> 4)
@@ -140,6 +140,15 @@ fn main() {
             }
 
             state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
+        }
+
+
+        if nanos_sleep > 0.0 {
+            if let Some(fb) = state.mem.display.redraw_request {
+                if let Some(window::WindowSignal::Exit) = window.update(&fb) {
+                    break;
+                }
+            }
 
             if !cli.loop_lock_timing {
                 thread::sleep(time::Duration::from_nanos(nanos_sleep as u64 / 10));
@@ -152,7 +161,7 @@ fn main() {
             }
 
             nanos_sleep =
-                nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as i128;
+                nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as f64;
             now = SystemTime::now();
 
             if last_ram_bank_enabled && !state.mem.ram_bank_enabled {

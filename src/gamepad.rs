@@ -10,7 +10,7 @@ pub struct Gamepad {
 }
 
 pub trait Input {
-    fn update_events(&mut self, cycles: u128);
+    fn update_events(&mut self, cycles: u128) -> Option<u128>;
     fn get_action_gamepad_reg(&self) -> u8;
     fn get_direction_gamepad_reg(&self) -> u8;
 }
@@ -40,8 +40,9 @@ impl Gamepad {
 }
 
 impl Input for Gamepad {
-    fn update_events(&mut self, _cycles: u128) {
+    fn update_events(&mut self, _cycles: u128) -> Option<u128> {
         while let Some(_) = self.gilrs.next_event() {}
+        None
     }
 
     fn get_action_gamepad_reg(&self) -> u8 {
@@ -114,7 +115,7 @@ impl Keyboard {
 }
 
 impl Input for Keyboard {
-    fn update_events(&mut self, _cycles: u128) {
+    fn update_events(&mut self, _cycles: u128) -> Option<u128> {
         let mut res = 0xf;
         let keys = self.keys.borrow();
 
@@ -155,6 +156,8 @@ impl Input for Keyboard {
         }
 
         self.direction_reg = res;
+
+        None
     }
 
     fn get_action_gamepad_reg(&self) -> u8 {
@@ -185,7 +188,7 @@ impl GamepadRecorder {
 }
 
 impl Input for GamepadRecorder {
-    fn update_events(&mut self, cycles: u128) {
+    fn update_events(&mut self, cycles: u128) -> Option<u128> {
         self.input.update_events(cycles);
 
         let new_action_reg = self.input.get_action_gamepad_reg();
@@ -212,6 +215,7 @@ impl Input for GamepadRecorder {
 
         self.action_reg = new_action_reg;
         self.direction_reg = new_direction_reg;
+        None
     }
 
     fn get_action_gamepad_reg(&self) -> u8 {
@@ -252,9 +256,9 @@ impl GamepadReplay {
 }
 
 impl Input for GamepadReplay {
-    fn update_events(&mut self, cycles: u128) {
+    fn update_events(&mut self, cycles: u128) -> Option<u128> {
         if let Some(next_cycle_update) = self.next_cycle_update {
-            if cycles > next_cycle_update {
+            if cycles >= next_cycle_update {
                 let mut inputs: [u8; 2] = [0; 2];
 
                 self.record_file
@@ -273,6 +277,8 @@ impl Input for GamepadReplay {
                 };
             }
         }
+
+        return self.next_cycle_update;
     }
 
     fn get_action_gamepad_reg(&self) -> u8 {
