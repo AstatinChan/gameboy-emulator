@@ -68,6 +68,7 @@ LD ($98ee), A
 ; Palette
 LD A, $fc
 LD ($47), A
+LD ($43), A
 
 ; LCD on
 LD A, $91
@@ -106,10 +107,10 @@ Loop:
 	LD A, C
 	LD ($42), A
 	DEC C
-	CP $02
+	CP $06
 	LD D, $83
 	CALL Z, =.sound1
-	CP $00
+	CP $04
 	JR NZ, =Loop
 	LD D, $c1
 	CALL =.sound1
