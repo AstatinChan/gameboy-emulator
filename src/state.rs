@@ -1,9 +1,7 @@
-use crate::audio::Audio;
 use crate::consts::{PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
-use crate::serial::Serial;
-use std::fs::File;
-use std::io::{Read, Write};
+use crate::audio::Channels;
+use crate::io::{Serial, Audio};
 
 pub mod reg {
     pub const B: u8 = 0;
@@ -105,8 +103,8 @@ impl CPU {
     }
 }
 
-pub struct Memory {
-    boot_rom: [u8; 0x900],
+pub struct Memory<S: Serial, A: Audio> {
+    pub boot_rom: [u8; 0x900],
 
     pub cgb_mode: bool,
 
@@ -127,7 +125,7 @@ pub struct Memory {
     pub ram_bank_enabled: bool,
 
     // 32 KiB ROM bank 00
-    rom: [u8; 0x200000],
+    pub rom: [u8; 0x200000],
 
     // 4 KiB Work RAM 00
     wram_00: [u8; 0x1000],
@@ -136,7 +134,7 @@ pub struct Memory {
     wram_01: [u8; 0x1000],
 
     // External RAM
-    external_ram: [u8; 0x8000],
+    pub external_ram: [u8; 0x8000],
 
     // 8 KiB Video RAM
     pub display: Display,
@@ -146,9 +144,9 @@ pub struct Memory {
     // High RAM
     hram: [u8; 0x7f],
 
-    pub audio: Audio,
+    pub audio: Channels<A>,
 
-    pub serial: Box<dyn Serial>,
+    pub serial: S,
 
     pub ime: bool,
 
@@ -187,8 +185,8 @@ mod serial_control_flags {
     pub const TRANSFER_ENABLE: u8 = 0b10000000;
 }
 
-impl Memory {
-    pub fn new(serial: Box<dyn Serial>) -> Self {
+impl<S: Serial, A: Audio> Memory<S, A> {
+    pub fn new(serial: S) -> Self {
         let mut display = Display::new();
 
         display.cls();
@@ -211,7 +209,7 @@ impl Memory {
             display,
             io: [0; 0x80],
             hram: [0; 0x7f],
-            audio: Audio::new(),
+            audio: Channels::new(),
             ime: false,
             interrupts_register: 0,
             joypad_is_action: false,
@@ -249,57 +247,6 @@ impl Memory {
             self.serial_control &= !serial_control_flags::TRANSFER_ENABLE;
             self.io[0x0f] |= 0b1000;
         }
-    }
-
-    pub fn load_dmg_boot_rom(&mut self) {
-        let bytes = include_bytes!("../assets/dmg_boot.bin");
-
-        self.boot_rom[..0x100].copy_from_slice(bytes);
-    }
-
-    pub fn load_cgb_boot_rom(&mut self) {
-        let bytes = include_bytes!("../assets/cgb_boot.bin");
-
-        self.boot_rom[..0x900].copy_from_slice(bytes);
-    }
-
-    pub fn load_rom(&mut self, file: &str) -> Result<(), std::io::Error> {
-        let mut f = File::open(file)?;
-
-        f.read(&mut self.rom)?;
-
-        println!("MBC: {:02x}", self.rom[0x147]);
-        println!("CGB: {:02x}", self.rom[0x143]);
-
-        if self.rom[0x143] == 0x80 || self.rom[0x143] == 0xc0 {
-            self.load_cgb_boot_rom();
-            self.cgb_mode = true;
-            self.display.cgb_mode = true;
-        } else {
-            self.load_dmg_boot_rom();
-        }
-
-        Ok(())
-    }
-
-    pub fn load_external_ram(&mut self, file: &str) -> Result<(), std::io::Error> {
-        let mut f = File::open(file)?;
-
-        f.read(&mut self.external_ram)?;
-
-        println!("Save file loaded from \"{}\"!", file);
-
-        Ok(())
-    }
-
-    pub fn save_external_ram(&self, file: &str) -> Result<(), std::io::Error> {
-        let mut f = File::create(file)?;
-
-        f.write_all(&self.external_ram)?;
-
-        println!("Save written to \"{}\"!", file);
-
-        Ok(())
     }
 
     pub fn r(&self, addr: u16) -> Result<u8, MemError> {
@@ -379,17 +326,17 @@ impl Memory {
     }
 }
 
-pub struct GBState {
+pub struct GBState<S: Serial, A: Audio> {
     pub cpu: CPU,
-    pub mem: Memory,
+    pub mem: Memory<S, A>,
     pub is_debug: bool,
 
     pub div_cycles: u64,
     pub tima_cycles: u64,
 }
 
-impl GBState {
-    pub fn new(serial: Box<dyn Serial>) -> Self {
+impl<S: Serial, A: Audio> GBState<S, A> {
+    pub fn new(serial: S) -> Self {
         let mem = Memory::new(serial);
 
         Self {

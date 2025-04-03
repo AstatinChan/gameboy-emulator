@@ -1,9 +1,12 @@
-use pixels::{Error, Pixels, SurfaceTexture};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
+
+use crate::io::{WindowSignal, Window};
+
+use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::EventLoop;
@@ -17,7 +20,7 @@ const HEIGHT: u32 = 144;
 
 pub type Keys = Rc<RefCell<HashSet<KeyCode>>>;
 
-pub struct Window<'a> {
+pub struct DesktopWindow<'a> {
     event_loop: EventLoop<()>,
     input: WinitInputHelper,
     window: Arc<WinitWindow>,
@@ -31,11 +34,7 @@ fn draw(frame: &mut [u8], fb: &[u32; 160 * 144]) {
     }
 }
 
-pub enum WindowSignal {
-    Exit,
-}
-
-impl<'a> Window<'a> {
+impl<'a> DesktopWindow<'a> {
     pub fn new() -> Result<Self, Error> {
         let event_loop = EventLoop::new().unwrap();
         let input = WinitInputHelper::new();
@@ -64,8 +63,10 @@ impl<'a> Window<'a> {
             keys: Rc::new(HashSet::new().into()),
         })
     }
+}
 
-    pub fn update(&mut self, fb: &[u32; 160 * 144]) -> Option<WindowSignal> {
+impl<'a> Window for DesktopWindow<'a> {
+    fn update(&mut self, fb: &[u32; 160 * 144]) -> Option<WindowSignal> {
         let mut res = None;
         let mut keys = (*self.keys).borrow_mut();
         self.event_loop

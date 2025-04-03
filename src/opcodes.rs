@@ -1,8 +1,9 @@
 use crate::state::{flag, reg, GBState, MemError};
+use crate::io::{Serial, Audio};
 
 // The opcodes functions are returning the number of cycles used.
 
-impl GBState {
+impl<S: Serial, A: Audio> GBState<S, A> {
     fn r_16b_from_pc(&mut self) -> Result<u16, MemError> {
         let p: u16 = self.mem.r(self.cpu.pc)? as u16 | ((self.mem.r(self.cpu.pc + 1)? as u16) << 8);
         self.cpu.pc += 2;

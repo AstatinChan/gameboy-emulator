@@ -3,16 +3,7 @@ use std::io::{Read, Write};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
-pub trait Serial {
-    // Should not be blocking
-    fn write(&mut self, byte: u8);
-    fn read(&mut self) -> u8;
-
-    fn new_transfer(&mut self) -> bool; // since last read
-    fn clock_master(&mut self) -> bool;
-
-    fn set_clock_master(&mut self, clock_master: bool);
-}
+use crate::io::Serial;
 
 pub struct UnconnectedSerial {}
 

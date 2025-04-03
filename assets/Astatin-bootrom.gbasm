@@ -1,4 +1,3 @@
-; .INCLUDE "minimal.gbasm"
 LD SP,$fffe
 
 EmptyVRAM:

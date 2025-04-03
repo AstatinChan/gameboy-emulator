@@ -1,18 +1,14 @@
-use crate::window::Keys;
-use gilrs::{Button, GamepadId, Gilrs};
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
+
+use gilrs::{Button, GamepadId, Gilrs};
+use crate::desktop::window::Keys;
+use crate::io::Input;
 use winit::keyboard::KeyCode;
 
 pub struct Gamepad {
     gilrs: Gilrs,
     gamepad_id: Option<GamepadId>,
-}
-
-pub trait Input {
-    fn update_events(&mut self, cycles: u128) -> Option<u128>;
-    fn get_action_gamepad_reg(&self) -> u8;
-    fn get_direction_gamepad_reg(&self) -> u8;
 }
 
 impl Gamepad {

@@ -1,19 +1,17 @@
 pub mod audio;
 pub mod consts;
 pub mod display;
-pub mod gamepad;
-pub mod interrupts_timers;
 pub mod io;
+pub mod interrupts_timers;
+pub mod mmio;
 pub mod opcodes;
-pub mod serial;
 pub mod state;
-pub mod window;
+pub mod desktop;
 
-use crate::gamepad::{Gamepad, GamepadRecorder, GamepadReplay, Input, Keyboard};
-use crate::state::GBState;
+use crate::io::Input;
+use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
+use crate::desktop::load_save::FSLoadSave;
 use clap::Parser;
-use std::time::SystemTime;
-use std::{thread, time};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -49,32 +47,11 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let mut total_cycle_counter: u128 = 0;
-
-    println!("Initializing Gamepad...");
 
     println!("Starting {:?}...", &cli.rom);
 
-    let mut state = match (cli.fifo_input, cli.fifo_output) {
-        (Some(fifo_input), Some(fifo_output)) => {
-            GBState::new(Box::new(serial::FIFOSerial::new(fifo_input, fifo_output)))
-        }
-        (None, None) => GBState::new(Box::new(serial::UnconnectedSerial {})),
-        _ => panic!("If using fifo serial, both input and output should be set"),
-    };
-
-    let save_file = format!("{}.sav", &cli.rom);
-
-    state.mem.load_rom(&cli.rom).unwrap();
-
-    if let Err(_) = state.mem.load_external_ram(&save_file) {
-        println!(
-            "\"{}\" not found. Initializing new external ram.",
-            save_file
-        );
-    }
-
-    let mut window = window::Window::new().unwrap();
+    let serial = desktop::serial::UnconnectedSerial{};
+    let window = desktop::window::DesktopWindow::new().unwrap();
 
     let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
         Box::new(GamepadReplay::new(record_file))
@@ -88,90 +65,8 @@ fn main() {
         gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
     };
 
-    state.is_debug = cli.debug;
-
-    let mut nanos_sleep: f64 = 0.0;
-    let mut halt_time = 0;
-    let mut was_previously_halted = false;
-
-    let mut last_ram_bank_enabled = false;
-    let mut now = SystemTime::now();
-    let mut next_precise_gamepad_update: Option<u128> = None;
-
-    loop {
-        if was_previously_halted && !state.mem.halt {
-            println!("Halt cycles {}", halt_time);
-            halt_time = 0;
-        }
-        was_previously_halted = state.mem.halt;
-        let c = if !state.mem.halt {
-            state.exec_opcode().unwrap()
-        } else {
-            halt_time += 4;
-            4
-        };
-
-        state.cpu.dbg_cycle_counter += c;
-        total_cycle_counter += c as u128;
-
-        state.div_timer(c);
-        state.tima_timer(c);
-        state.update_display_interrupts(c);
-        state.check_interrupts().unwrap();
-        state.mem.update_serial();
-
-        nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / cli.speed as f64) as f64;
-
-        if nanos_sleep >= 0.0 || next_precise_gamepad_update.map_or(false, |c| (c >= total_cycle_counter)) {
-            next_precise_gamepad_update = gamepad.update_events(total_cycle_counter);
-
-            let (action_button_reg, direction_button_reg) = (
-                gamepad.get_action_gamepad_reg(),
-                gamepad.get_direction_gamepad_reg(),
-            );
-
-            if state.mem.joypad_is_action
-                && (action_button_reg & (state.mem.joypad_reg >> 4)) != (state.mem.joypad_reg >> 4)
-                || (!state.mem.joypad_is_action
-                    && (direction_button_reg & state.mem.joypad_reg & 0b1111)
-                        != (state.mem.joypad_reg & 0b1111))
-            {
-                state.mem.io[0x0f] |= 0b10000;
-            }
-
-            state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
-        }
-
-
-        if nanos_sleep > 0.0 {
-            if let Some(fb) = state.mem.display.redraw_request {
-                if let Some(window::WindowSignal::Exit) = window.update(&fb) {
-                    break;
-                }
-            }
-
-            if !cli.loop_lock_timing {
-                thread::sleep(time::Duration::from_nanos(nanos_sleep as u64 / 10));
-            } else {
-                while SystemTime::now().duration_since(now).unwrap().as_nanos()
-                    < nanos_sleep as u128
-                {
-                    for _ in 0..100_000_000 {}
-                }
-            }
-
-            nanos_sleep =
-                nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as f64;
-            now = SystemTime::now();
-
-            if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
-                println!("Saving to \"{}\"...", save_file);
-
-                if let Err(_) = state.mem.save_external_ram(&save_file) {
-                    println!("Failed to save external RAM");
-                }
-            }
-            last_ram_bank_enabled = state.mem.ram_bank_enabled;
-        }
-    }
+    io::Gameboy::<_, _, _, desktop::audio::RodioAudio, _>::new(
+        gamepad, window, serial,
+        FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom)),
+        cli.speed as f64).start();
 }

@@ -1,12 +1,11 @@
 // You are entering a very scary territory of magic numbers and arbitrary math operations.
 // I don't remember why I did all of this but it works I guess :3
 
-use rodio::{OutputStream, Sink, Source};
+use crate::io::Audio;
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
-const SAMPLE_RATE: u32 = 65536;
+pub const SAMPLE_RATE: u32 = 65536;
 
 const SAMPLE_AVERAGING: usize = 5; //20;
 
@@ -381,24 +380,6 @@ impl Iterator for MutableWave {
     }
 }
 
-impl Source for MutableWave {
-    fn current_frame_len(&self) -> Option<usize> {
-        None
-    }
-
-    fn channels(&self) -> u16 {
-        1
-    }
-
-    fn sample_rate(&self) -> u32 {
-        SAMPLE_RATE
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        None
-    }
-}
-
 pub struct AudioSquareChannel {
     wave: Arc<Mutex<Option<Wave>>>,
 
@@ -453,6 +434,10 @@ impl AudioSquareChannel {
             }
         }
     }
+
+    pub fn get_wave_mutex(&self) -> Arc<Mutex<Option<Wave>>> {
+        return self.wave.clone();
+    }
 }
 
 pub struct AudioCustomChannel {
@@ -498,6 +483,10 @@ impl AudioCustomChannel {
                 *wave = None;
             }
         }
+    }
+
+    pub fn get_wave_mutex(&self) -> Arc<Mutex<Option<Wave>>> {
+        return self.wave.clone();
     }
 }
 
@@ -549,11 +538,14 @@ impl AudioNoiseChannel {
             }
         }
     }
+
+    pub fn get_wave_mutex(&self) -> Arc<Mutex<Option<NoiseWave>>> {
+        return self.wave.clone();
+    }
 }
 
-pub struct Audio {
-    _stream: OutputStream,
-    _sink: Sink,
+pub struct Channels<A: Audio> {
+    _audio: A,
 
     pub ch1: AudioSquareChannel,
     pub ch2: AudioSquareChannel,
@@ -561,18 +553,15 @@ pub struct Audio {
     pub ch4: AudioNoiseChannel,
 }
 
-impl Audio {
+impl<A: Audio> Channels<A> {
     pub fn new() -> Self {
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
-
-        let sink = Sink::try_new(&stream_handle).unwrap();
 
         let wave_ch1 = Arc::new(Mutex::new(None));
         let wave_ch2 = Arc::new(Mutex::new(None));
         let wave_ch3 = Arc::new(Mutex::new(None));
         let wave_ch4 = Arc::new(Mutex::new(None));
 
-        sink.append(MutableWave::new(
+        let audio = A::new(MutableWave::new(
             wave_ch1.clone(),
             wave_ch2.clone(),
             wave_ch3.clone(),
@@ -580,9 +569,7 @@ impl Audio {
         ));
 
         Self {
-            _stream: stream,
-            _sink: sink,
-
+            _audio: audio,
             ch1: AudioSquareChannel::new(wave_ch1),
             ch2: AudioSquareChannel::new(wave_ch2),
             ch3: AudioCustomChannel::new(wave_ch3),
