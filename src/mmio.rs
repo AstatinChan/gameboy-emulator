@@ -1,5 +1,5 @@
+use crate::io::{Audio, Serial};
 use crate::state::{MemError, Memory};
-use crate::io::{Serial, Audio};
 
 impl<S: Serial, A: Audio> Memory<S, A> {
     pub fn r_io(&self, addr: u8) -> u8 {

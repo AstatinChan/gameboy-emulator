@@ -1,10 +1,13 @@
+use crate::io::{Audio, LoadSave, Serial};
+use crate::state::GBState;
 use std::fs::File;
-use std::io::{Write, Read};
-use crate::io::LoadSave;
+use std::io::{Read, Write};
 
+#[derive(Debug)]
 pub struct FSLoadSave {
     rom_file: String,
     save_file: String,
+    state_file: Option<String>,
 }
 
 impl FSLoadSave {
@@ -12,7 +15,13 @@ impl FSLoadSave {
         Self {
             rom_file: rom_file.into(),
             save_file: save_file.into(),
+            state_file: None,
         }
+    }
+
+    pub fn state_file(mut self, state_file: impl Into<String>) -> Self {
+        self.state_file = Some(state_file.into());
+        self
     }
 }
 
@@ -65,5 +74,47 @@ impl LoadSave for FSLoadSave {
         println!("Save written to \"{}\"!", self.save_file);
 
         Ok(())
+    }
+
+    fn save_state<S: Serial, A: Audio>(&self, state: &GBState<S, A>) {
+        if let Some(state_file) = &self.state_file {
+            {
+                let mut vram_dump_file = File::create(format!("{}.vram", state_file)).unwrap();
+
+                for addr in 0x8000..0xa000 {
+                    vram_dump_file
+                        .write_all(format!("{:02X} ", state.mem.r(addr).unwrap()).as_bytes());
+                }
+            }
+
+            {
+                let mut wram_dump_file = File::create(format!("{}.wram", state_file)).unwrap();
+
+                for addr in 0xc000..0xe000 {
+                    wram_dump_file
+                        .write_all(format!("{:02X} ", state.mem.r(addr).unwrap()).as_bytes());
+                }
+            }
+
+            {
+                let mut io_dump_file = File::create(format!("{}.io", state_file)).unwrap();
+
+                for addr in 0xff00..0xff80 {
+                    io_dump_file
+                        .write_all(format!("{:02X} ", state.mem.r(addr).unwrap()).as_bytes());
+                }
+            }
+
+            {
+                let mut hram_dump_file = File::create(format!("{}.hram", state_file)).unwrap();
+
+                for addr in 0xff80..=0xffff {
+                    hram_dump_file
+                        .write_all(format!("{:02X} ", state.mem.r(addr).unwrap()).as_bytes());
+                }
+            }
+        } else {
+            panic!("{:?}", self)
+        }
     }
 }

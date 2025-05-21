@@ -1,13 +1,14 @@
 use std::time::SystemTime;
 use std::{thread, time};
 
-use crate::state::GBState;
 use crate::consts;
+use crate::state::GBState;
 
 pub trait Input {
     fn update_events(&mut self, cycles: u128) -> Option<u128>;
     fn get_action_gamepad_reg(&self) -> u8;
     fn get_direction_gamepad_reg(&self) -> u8;
+    fn save_state(&mut self) -> bool;
 }
 
 impl<T: Input + ?Sized> Input for Box<T> {
@@ -19,6 +20,9 @@ impl<T: Input + ?Sized> Input for Box<T> {
     }
     fn get_direction_gamepad_reg(&self) -> u8 {
         (**self).get_direction_gamepad_reg()
+    }
+    fn save_state(&mut self) -> bool {
+        (**self).save_state()
     }
 }
 
@@ -45,21 +49,20 @@ pub trait Audio {
     fn new<S: Iterator<Item = f32> + Send + 'static>(wave: S) -> Self;
 }
 
-pub trait LoadSave where Self::Error: std::fmt::Display, Self::Error: std::fmt::Debug {
+pub trait LoadSave
+where
+    Self::Error: std::fmt::Display,
+    Self::Error: std::fmt::Debug,
+{
     type Error;
     fn load_bootrom(&self, boot_rom: &mut [u8]) -> Result<(), Self::Error>;
     fn load_rom(&self, rom: &mut [u8]) -> Result<(), Self::Error>;
     fn load_external_ram(&self, external_ram: &mut [u8]) -> Result<(), Self::Error>;
     fn save_external_ram(&self, external_ram: &[u8]) -> Result<(), Self::Error>;
+    fn save_state<S: Serial, A: Audio>(&self, state: &GBState<S, A>);
 }
 
-pub struct Gameboy<
-    I: Input,
-    W: Window,
-    S: Serial,
-    A: Audio,
-    LS: LoadSave,
-> {
+pub struct Gameboy<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> {
     input: I,
     window: W,
     speed: f64,
@@ -78,7 +81,6 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
         }
     }
 
-    
     pub fn start(self) {
         let Self {
             mut window,
@@ -88,10 +90,10 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             load_save,
         } = self;
 
-        load_save.load_bootrom(&mut state.mem.boot_rom).unwrap();
-        load_save.load_rom(&mut state.mem.rom).unwrap();
+        load_save.load_bootrom(state.mem.boot_rom.as_mut()).unwrap();
+        load_save.load_rom(state.mem.rom.as_mut()).unwrap();
 
-        if let Err(err) = load_save.load_external_ram(&mut state.mem.external_ram) {
+        if let Err(err) = load_save.load_external_ram(state.mem.external_ram.as_mut()) {
             println!(
                 "Loading save failed ({}). Initializing new external ram.",
                 err
@@ -130,16 +132,24 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
             nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / speed) as f64;
 
-            if nanos_sleep >= 0.0 || next_precise_gamepad_update.map_or(false, |c| (c >= total_cycle_counter)) {
+            if nanos_sleep >= 0.0
+                || next_precise_gamepad_update.map_or(false, |c| (c >= total_cycle_counter))
+            {
                 next_precise_gamepad_update = input.update_events(total_cycle_counter);
 
-                let (action_button_reg, direction_button_reg) = (
+                let (action_button_reg, direction_button_reg, save_state) = (
                     input.get_action_gamepad_reg(),
                     input.get_direction_gamepad_reg(),
+                    input.save_state(),
                 );
 
+                if save_state {
+                    load_save.save_state(&state);
+                }
+
                 if state.mem.joypad_is_action
-                    && (action_button_reg & (state.mem.joypad_reg >> 4)) != (state.mem.joypad_reg >> 4)
+                    && (action_button_reg & (state.mem.joypad_reg >> 4))
+                        != (state.mem.joypad_reg >> 4)
                     || (!state.mem.joypad_is_action
                         && (direction_button_reg & state.mem.joypad_reg & 0b1111)
                             != (state.mem.joypad_reg & 0b1111))
@@ -149,7 +159,6 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
                 state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
             }
-
 
             if nanos_sleep > 0.0 {
                 if let Some(fb) = state.mem.display.redraw_request {
@@ -165,7 +174,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
                 now = SystemTime::now();
 
                 if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
-                    if let Err(err) = load_save.save_external_ram(&state.mem.external_ram) {
+                    if let Err(err) = load_save.save_external_ram(state.mem.external_ram.as_ref()) {
                         println!("Failed to save external RAM ({})", err);
                     }
                 }

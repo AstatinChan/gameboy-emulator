@@ -1,6 +1,6 @@
 use crate::display::DisplayInterrupt;
+use crate::io::{Audio, Serial};
 use crate::state::{GBState, MemError};
-use crate::io::{Serial, Audio};
 
 const TIMA_TIMER_SPEEDS: [u64; 4] = [1024, 16, 64, 256];
 

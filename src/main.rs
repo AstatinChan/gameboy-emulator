@@ -1,16 +1,16 @@
 pub mod audio;
 pub mod consts;
+pub mod desktop;
 pub mod display;
-pub mod io;
 pub mod interrupts_timers;
+pub mod io;
 pub mod mmio;
 pub mod opcodes;
 pub mod state;
-pub mod desktop;
 
-use crate::io::Input;
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
+use crate::io::Input;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -50,7 +50,7 @@ fn main() {
 
     println!("Starting {:?}...", &cli.rom);
 
-    let serial = desktop::serial::UnconnectedSerial{};
+    let serial = desktop::serial::UnconnectedSerial {};
     let window = desktop::window::DesktopWindow::new().unwrap();
 
     let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
@@ -66,7 +66,12 @@ fn main() {
     };
 
     io::Gameboy::<_, _, _, desktop::audio::RodioAudio, _>::new(
-        gamepad, window, serial,
-        FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom)),
-        cli.speed as f64).start();
+        gamepad,
+        window,
+        serial,
+        FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom))
+            .state_file(format!("{}.dump", &cli.rom)),
+        cli.speed as f64,
+    )
+    .start();
 }

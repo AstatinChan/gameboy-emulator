@@ -555,7 +555,6 @@ pub struct Channels<A: Audio> {
 
 impl<A: Audio> Channels<A> {
     pub fn new() -> Self {
-
         let wave_ch1 = Arc::new(Mutex::new(None));
         let wave_ch2 = Arc::new(Mutex::new(None));
         let wave_ch3 = Arc::new(Mutex::new(None));

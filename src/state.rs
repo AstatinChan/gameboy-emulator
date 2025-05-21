@@ -1,7 +1,7 @@
+use crate::audio::Channels;
 use crate::consts::{PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
-use crate::audio::Channels;
-use crate::io::{Serial, Audio};
+use crate::io::{Audio, Serial};
 
 pub mod reg {
     pub const B: u8 = 0;
@@ -104,7 +104,7 @@ impl CPU {
 }
 
 pub struct Memory<S: Serial, A: Audio> {
-    pub boot_rom: [u8; 0x900],
+    pub boot_rom: Box<[u8; 0x900]>,
 
     pub cgb_mode: bool,
 
@@ -125,24 +125,24 @@ pub struct Memory<S: Serial, A: Audio> {
     pub ram_bank_enabled: bool,
 
     // 32 KiB ROM bank 00
-    pub rom: [u8; 0x200000],
+    pub rom: Box<[u8; 0x200000]>,
 
     // 4 KiB Work RAM 00
-    wram_00: [u8; 0x1000],
+    wram_00: Box<[u8; 0x1000]>,
 
     // 4 KiB Work RAM 00
-    wram_01: [u8; 0x1000],
+    wram_01: Box<[u8; 0x1000]>,
 
     // External RAM
-    pub external_ram: [u8; 0x8000],
+    pub external_ram: Box<[u8; 0x8000]>,
 
     // 8 KiB Video RAM
     pub display: Display,
 
-    pub io: [u8; 0x80],
+    pub io: Box<[u8; 0x80]>,
 
     // High RAM
-    hram: [u8; 0x7f],
+    hram: Box<[u8; 0x7f]>,
 
     pub audio: Channels<A>,
 
@@ -192,7 +192,7 @@ impl<S: Serial, A: Audio> Memory<S, A> {
         display.cls();
 
         Self {
-            boot_rom: [0; 0x900],
+            boot_rom: Box::new([0; 0x900]),
             boot_rom_on: true,
             cgb_mode: false,
             bgcram_pointer: 0,
@@ -202,13 +202,13 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             rom_bank: 1,
             ram_bank: 0,
             ram_bank_enabled: false,
-            rom: [0; 0x200000],
-            wram_00: [0; 0x1000],
-            wram_01: [0; 0x1000],
-            external_ram: [0; 0x8000],
+            rom: Box::new([0; 0x200000]),
+            wram_00: Box::new([0; 0x1000]),
+            wram_01: Box::new([0; 0x1000]),
+            external_ram: Box::new([0; 0x8000]),
             display,
-            io: [0; 0x80],
-            hram: [0; 0x7f],
+            io: Box::new([0; 0x80]),
+            hram: Box::new([0; 0x7f]),
             audio: Channels::new(),
             ime: false,
             interrupts_register: 0,

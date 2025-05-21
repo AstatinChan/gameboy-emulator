@@ -1,14 +1,15 @@
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
 
-use gilrs::{Button, GamepadId, Gilrs};
 use crate::desktop::window::Keys;
 use crate::io::Input;
+use gilrs::{Button, GamepadId, Gilrs};
 use winit::keyboard::KeyCode;
 
 pub struct Gamepad {
     gilrs: Gilrs,
     gamepad_id: Option<GamepadId>,
+    last_save_state: bool,
 }
 
 impl Gamepad {
@@ -23,7 +24,11 @@ impl Gamepad {
             None
         };
 
-        Self { gilrs, gamepad_id }
+        Self {
+            gilrs,
+            gamepad_id,
+            last_save_state: false,
+        }
     }
 
     pub fn check_special_actions(&self, is_debug: &mut bool) {
@@ -91,6 +96,19 @@ impl Input for Gamepad {
         }
 
         res
+    }
+
+    fn save_state(&mut self) -> bool {
+        let mut ret = false;
+
+        if let Some(gamepad_id) = self.gamepad_id {
+            if let Some(gamepad) = self.gilrs.connected_gamepad(gamepad_id) {
+                let pressed = gamepad.is_pressed(Button::North);
+                ret = pressed && !self.last_save_state;
+                self.last_save_state = pressed;
+            }
+        }
+        ret
     }
 }
 
@@ -163,6 +181,10 @@ impl Input for Keyboard {
     fn get_direction_gamepad_reg(&self) -> u8 {
         self.direction_reg
     }
+
+    fn save_state(&mut self) -> bool {
+        false
+    }
 }
 
 pub struct GamepadRecorder {
@@ -221,6 +243,10 @@ impl Input for GamepadRecorder {
     fn get_direction_gamepad_reg(&self) -> u8 {
         self.direction_reg
     }
+
+    fn save_state(&mut self) -> bool {
+        false
+    }
 }
 
 pub struct GamepadReplay {
@@ -228,6 +254,7 @@ pub struct GamepadReplay {
     action_reg: u8,
     direction_reg: u8,
     next_cycle_update: Option<u128>,
+    last_save_state: bool,
 }
 
 impl GamepadReplay {
@@ -247,6 +274,7 @@ impl GamepadReplay {
             action_reg: 0xff,
             direction_reg: 0xff,
             next_cycle_update,
+            last_save_state: false,
         }
     }
 }
@@ -283,5 +311,18 @@ impl Input for GamepadReplay {
 
     fn get_direction_gamepad_reg(&self) -> u8 {
         self.direction_reg
+    }
+
+    fn save_state(&mut self) -> bool {
+        if self.last_save_state {
+            return false;
+        }
+        if self.next_cycle_update == None {
+            println!("SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE SAVE");
+
+            self.last_save_state = true;
+            return true;
+        }
+        false
     }
 }

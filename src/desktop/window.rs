@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::io::{WindowSignal, Window};
+use crate::io::{Window, WindowSignal};
 
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
