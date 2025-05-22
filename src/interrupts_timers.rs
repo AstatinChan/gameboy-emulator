@@ -1,16 +1,16 @@
 use crate::display::DisplayInterrupt;
 use crate::io::{Audio, Serial};
-use crate::state::{GBState, MemError};
+use crate::state::GBState;
 
 const TIMA_TIMER_SPEEDS: [u64; 4] = [1024, 16, 64, 256];
 
 impl<S: Serial, A: Audio> GBState<S, A> {
-    pub fn check_interrupts(&mut self) -> Result<(), MemError> {
+    pub fn check_interrupts(&mut self) {
         if self.mem.ime {
             let interrupts = self.mem.io[0x0f] & self.mem.interrupts_register & 0b11111;
             for i in 0..5 {
                 if interrupts & (1 << i) != 0 {
-                    self.push(self.cpu.pc)?;
+                    self.push(self.cpu.pc);
 
                     self.mem.ime = false;
                     self.cpu.pc = 0x40 + (i << 3);
@@ -21,7 +21,6 @@ impl<S: Serial, A: Audio> GBState<S, A> {
                 }
             }
         }
-        Ok(())
     }
 
     pub fn tima_timer(&mut self, c: u64) {

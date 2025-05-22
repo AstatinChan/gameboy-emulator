@@ -35,6 +35,12 @@ struct Cli {
     #[arg(long)]
     replay_input: Option<String>,
 
+    #[arg(long)]
+    state_file: Option<String>,
+
+    #[arg(short, long, default_value_t = false)]
+    load_state: bool,
+
     #[arg(short, long, default_value_t = false)]
     keyboard: bool,
 
@@ -65,13 +71,26 @@ fn main() {
         gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
     };
 
-    io::Gameboy::<_, _, _, desktop::audio::RodioAudio, _>::new(
+    let mut fs_load_save = FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom));
+    if let Some(state_file) = &cli.state_file {
+        fs_load_save = fs_load_save.state_file(state_file);
+    }
+
+    let mut gameboy = io::Gameboy::<_, _, _, desktop::audio::RodioAudio, _>::new(
         gamepad,
         window,
         serial,
-        FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom))
-            .state_file(format!("{}.dump", &cli.rom)),
+        fs_load_save,
         cli.speed as f64,
-    )
-    .start();
+    );
+
+    if cli.debug {
+        gameboy.debug();
+    }
+
+    if cli.load_state {
+        gameboy.load_state().unwrap();
+    }
+
+    gameboy.start();
 }

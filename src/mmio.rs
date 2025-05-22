@@ -1,5 +1,5 @@
 use crate::io::{Audio, Serial};
-use crate::state::{MemError, Memory};
+use crate::state::Memory;
 
 impl<S: Serial, A: Audio> Memory<S, A> {
     pub fn r_io(&self, addr: u8) -> u8 {
@@ -61,7 +61,7 @@ impl<S: Serial, A: Audio> Memory<S, A> {
         }
     }
 
-    pub fn w_io(&mut self, addr: u8, value: u8) -> Result<(), MemError> {
+    pub fn w_io(&mut self, addr: u8, value: u8) {
         match addr {
             0x00 => {
                 self.joypad_is_action = !value & 0b00100000 != 0;
@@ -213,7 +213,7 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                     let addr = (value as u16) << 8;
 
                     for i in 0..0xa0 {
-                        self.w(0xfe00 | i, self.r(addr | i)?)?;
+                        self.w(0xfe00 | i, self.r(addr | i))
                     }
                 }
             }
@@ -262,7 +262,5 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             self.audio.ch3.wave_pattern[i * 2] = value >> 4;
             self.audio.ch3.wave_pattern[i * 2 + 1] = value & 0xf;
         }
-
-        Ok(())
     }
 }

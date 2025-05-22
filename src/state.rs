@@ -128,10 +128,10 @@ pub struct Memory<S: Serial, A: Audio> {
     pub rom: Box<[u8; 0x200000]>,
 
     // 4 KiB Work RAM 00
-    wram_00: Box<[u8; 0x1000]>,
+    pub wram_00: Box<[u8; 0x1000]>,
 
     // 4 KiB Work RAM 00
-    wram_01: Box<[u8; 0x1000]>,
+    pub wram_01: Box<[u8; 0x1000]>,
 
     // External RAM
     pub external_ram: Box<[u8; 0x8000]>,
@@ -142,7 +142,7 @@ pub struct Memory<S: Serial, A: Audio> {
     pub io: Box<[u8; 0x80]>,
 
     // High RAM
-    hram: Box<[u8; 0x7f]>,
+    pub hram: Box<[u8; 0x7f]>,
 
     pub audio: Channels<A>,
 
@@ -171,13 +171,6 @@ pub struct Memory<S: Serial, A: Audio> {
     pub serial_data: u8,
 
     pub serial_control: u8,
-}
-
-#[derive(Debug)]
-pub enum MemError {
-    WritingToROM,
-    Unimplemented,
-    NotUsable,
 }
 
 mod serial_control_flags {
@@ -249,79 +242,70 @@ impl<S: Serial, A: Audio> Memory<S, A> {
         }
     }
 
-    pub fn r(&self, addr: u16) -> Result<u8, MemError> {
+    pub fn r(&self, addr: u16) -> u8 {
         if (addr < 0x100 || (addr >= 0x200 && addr < 0x900)) && self.boot_rom_on {
-            Ok(self.boot_rom[addr as usize])
+            self.boot_rom[addr as usize]
         } else if addr < 0x4000 {
-            Ok(self.rom[addr as usize])
+            self.rom[addr as usize]
         } else if addr < 0x8000 {
-            Ok(self.rom[self.rom_bank as usize * 0x4000 + addr as usize - 0x4000 as usize])
+            self.rom[self.rom_bank as usize * 0x4000 + addr as usize - 0x4000 as usize]
         } else if addr >= 0xa000 && addr < 0xc000 {
             if self.ram_bank_enabled {
-                Ok(self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000])
+                self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000]
             } else {
-                Ok(0xff)
+                0xff
             }
         } else if addr >= 0xc000 && addr < 0xd000 {
-            Ok(self.wram_00[addr as usize - 0xc000])
+            self.wram_00[addr as usize - 0xc000]
         } else if addr >= 0xd000 && addr < 0xe000 {
-            Ok(self.wram_01[addr as usize - 0xd000])
+            self.wram_01[addr as usize - 0xd000]
         } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
             self.display.r(addr & !0x8000)
         } else if addr >= 0xff00 && addr < 0xff80 {
-            Ok(self.r_io((addr & 0xff) as u8))
+            self.r_io((addr & 0xff) as u8)
         } else if addr >= 0xff80 && addr < 0xffff {
-            Ok(self.hram[addr as usize - 0xff80])
+            self.hram[addr as usize - 0xff80]
         } else if addr == 0xffff {
-            Ok(self.interrupts_register)
+            self.interrupts_register
         } else {
             println!(
                 "Trying to read at address 0x{:04x} which is unimplemented",
                 addr
             );
-            Ok(0) //Err(MemError::Unimplemented)
+            0
         }
     }
 
-    pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
+    pub fn w(&mut self, addr: u16, value: u8) {
         if addr < 0x2000 {
             self.ram_bank_enabled = value == 0x0a;
-            Ok(())
         } else if addr >= 0x2000 && addr < 0x4000 {
             if value == 0 {
                 self.rom_bank = 1
             } else {
                 self.rom_bank = value & 0b1111111;
             }
-            Ok(())
         } else if addr >= 0x4000 && addr < 0x6000 {
             self.ram_bank = value & 0b11;
-            Ok(())
         } else if addr >= 0xa000 && addr < 0xc000 {
             self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000] = value;
-            Ok(())
         } else if addr >= 0xc000 && addr < 0xd000 {
             self.wram_00[addr as usize - 0xc000] = value;
-            Ok(())
         } else if addr >= 0xd000 && addr < 0xe000 {
             self.wram_01[addr as usize - 0xd000] = value;
-            Ok(())
         } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
-            self.display.w(addr & !0x8000, value)
+            self.display.w(addr & !0x8000, value);
         } else if addr >= 0xff00 && addr < 0xff80 {
-            Ok(self.w_io((addr & 0xff) as u8, value)?)
+            self.w_io((addr & 0xff) as u8, value);
         } else if addr >= 0xff80 && addr < 0xffff {
             self.hram[addr as usize - 0xff80] = value;
-            Ok(())
         } else if addr == 0xffff {
             self.interrupts_register = value;
-            Ok(())
         } else {
             println!(
                 "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
                 addr, value
             );
-            Ok(()) //Err(MemError::Unimplemented)
         }
     }
 }
@@ -349,11 +333,11 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         }
     }
 
-    pub fn r_reg(&self, r_i: u8) -> Result<u8, MemError> {
+    pub fn r_reg(&self, r_i: u8) -> u8 {
         if r_i < 6 {
-            Ok(self.cpu.r[r_i as usize])
+            self.cpu.r[r_i as usize]
         } else if r_i == 7 {
-            Ok(self.cpu.r[6])
+            self.cpu.r[6]
         } else if r_i == 6 {
             self.mem.r(self.cpu.r16(reg::HL))
         } else {
@@ -361,17 +345,16 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         }
     }
 
-    pub fn w_reg(&mut self, r_i: u8, value: u8) -> Result<(), MemError> {
+    pub fn w_reg(&mut self, r_i: u8, value: u8) {
         if r_i < 6 {
             self.cpu.r[r_i as usize] = value;
         } else if r_i == 7 {
             self.cpu.r[6] = value;
         } else if r_i == 6 {
-            self.mem.w(self.cpu.r16(reg::HL), value)?;
+            self.mem.w(self.cpu.r16(reg::HL), value);
         } else {
             panic!("r_i must be a 3 bits register input number")
         }
-        Ok(())
     }
 
     pub fn debug(&self, s: &str) -> () {

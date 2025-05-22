@@ -1,7 +1,6 @@
 // Very readable, much clean wow.
 
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
-use crate::state::MemError;
 use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
@@ -145,7 +144,7 @@ impl Display {
         }
     }
 
-    pub fn w(&mut self, addr: u16, value: u8) -> Result<(), MemError> {
+    pub fn w(&mut self, addr: u16, value: u8) {
         if self.vram_bank == 0 {
             if addr < 0x1800 {
                 self.tiledata[addr as usize] = value;
@@ -161,25 +160,24 @@ impl Display {
                 self.bg_map_attr[addr as usize - 0x1800] = value;
             }
         }
-        Ok(())
     }
 
-    pub fn r(&self, addr: u16) -> Result<u8, MemError> {
+    pub fn r(&self, addr: u16) -> u8 {
         if self.vram_bank == 0 {
             if addr < 0x1800 {
-                Ok(self.tiledata[addr as usize])
+                self.tiledata[addr as usize]
             } else if addr >= 0x7e00 {
-                Ok(self.oam[addr as usize - 0x7e00])
+                self.oam[addr as usize - 0x7e00]
             } else {
-                Ok(self.tilemaps[addr as usize - 0x1800])
+                self.tilemaps[addr as usize - 0x1800]
             }
         } else {
             if addr < 0x1800 {
-                Ok(self.tiledata[addr as usize + 0x1800])
+                self.tiledata[addr as usize + 0x1800]
             } else if addr < 0x1c00 {
-                Ok(self.bg_map_attr[addr as usize - 0x1800])
+                self.bg_map_attr[addr as usize - 0x1800]
             } else {
-                Ok(0)
+                0
             }
         }
     }

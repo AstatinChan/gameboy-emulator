@@ -59,7 +59,10 @@ where
     fn load_rom(&self, rom: &mut [u8]) -> Result<(), Self::Error>;
     fn load_external_ram(&self, external_ram: &mut [u8]) -> Result<(), Self::Error>;
     fn save_external_ram(&self, external_ram: &[u8]) -> Result<(), Self::Error>;
-    fn save_state<S: Serial, A: Audio>(&self, state: &GBState<S, A>);
+    fn dump_state<S: Serial, A: Audio>(&self, state: &GBState<S, A>) -> Result<(), Self::Error>;
+    fn save_state<S: Serial, A: Audio>(&self, state: &GBState<S, A>) -> Result<(), Self::Error>;
+    fn load_state<S: Serial, A: Audio>(&self, state: &mut GBState<S, A>)
+        -> Result<(), Self::Error>;
 }
 
 pub struct Gameboy<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> {
@@ -79,6 +82,15 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             state: GBState::<S, A>::new(serial),
             load_save,
         }
+    }
+
+    pub fn load_state(&mut self) -> Result<(), LS::Error> {
+        self.load_save.load_state(&mut self.state)?;
+        Ok(())
+    }
+
+    pub fn debug(&mut self) {
+        self.state.is_debug = true;
     }
 
     pub fn start(self) {
@@ -115,7 +127,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             }
             was_previously_halted = state.mem.halt;
             let c = if !state.mem.halt {
-                state.exec_opcode().unwrap()
+                state.exec_opcode()
             } else {
                 halt_time += 4;
                 4
@@ -127,7 +139,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             state.div_timer(c);
             state.tima_timer(c);
             state.update_display_interrupts(c);
-            state.check_interrupts().unwrap();
+            state.check_interrupts();
             state.mem.update_serial();
 
             nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / speed) as f64;
@@ -144,7 +156,9 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
                 );
 
                 if save_state {
-                    load_save.save_state(&state);
+                    if let Err(err) = load_save.save_state(&state) {
+                        eprintln!("FAILED SAVE STATE: {:?}", err);
+                    }
                 }
 
                 if state.mem.joypad_is_action
