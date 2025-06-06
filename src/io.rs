@@ -75,13 +75,25 @@ pub struct Gameboy<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> {
 
 impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A, LS> {
     pub fn new(input: I, window: W, serial: S, load_save: LS, speed: f64) -> Self {
-        Self {
+        let mut gb = Self {
             input,
             window,
             speed,
             state: GBState::<S, A>::new(serial),
             load_save,
+        };
+
+        gb.load_save.load_bootrom(gb.state.mem.boot_rom.as_mut()).unwrap();
+        gb.load_save.load_rom(gb.state.mem.rom.as_mut()).unwrap();
+
+        if let Err(err) = gb.load_save.load_external_ram(gb.state.mem.external_ram.as_mut()) {
+            println!(
+                "Loading save failed ({}). Initializing new external ram.",
+                err
+            );
         }
+
+        gb
     }
 
     pub fn load_state(&mut self) -> Result<(), LS::Error> {
@@ -89,28 +101,30 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
         Ok(())
     }
 
+
+    pub fn dump_state(&mut self) -> Result<(), LS::Error> {
+        self.load_save.dump_state(&mut self.state)?;
+        Ok(())
+    }
+
     pub fn debug(&mut self) {
         self.state.is_debug = true;
     }
 
-    pub fn start(self) {
+    pub fn skip_bootrom(&mut self) {
+        self.state.mem.boot_rom_on = false;
+        self.state.cpu.pc = 0x100;
+    }
+
+    pub fn start(&mut self) {
         let Self {
-            mut window,
-            mut input,
-            speed,
-            mut state,
-            load_save,
+            ref mut window,
+            ref mut input,
+            ref speed,
+            ref mut state,
+            ref load_save,
         } = self;
 
-        load_save.load_bootrom(state.mem.boot_rom.as_mut()).unwrap();
-        load_save.load_rom(state.mem.rom.as_mut()).unwrap();
-
-        if let Err(err) = load_save.load_external_ram(state.mem.external_ram.as_mut()) {
-            println!(
-                "Loading save failed ({}). Initializing new external ram.",
-                err
-            );
-        }
         let mut total_cycle_counter: u128 = 0;
         let mut nanos_sleep: f64 = 0.0;
         let mut halt_time = 0;
@@ -120,7 +134,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
         let mut now = SystemTime::now();
         let mut next_precise_gamepad_update: Option<u128> = None;
 
-        loop {
+        while !state.is_stopped {
             if was_previously_halted && !state.mem.halt {
                 println!("Halt cycles {}", halt_time);
                 halt_time = 0;
@@ -142,7 +156,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             state.check_interrupts();
             state.mem.update_serial();
 
-            nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / speed) as f64;
+            nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / *speed) as f64;
 
             if nanos_sleep >= 0.0
                 || next_precise_gamepad_update.map_or(false, |c| (c >= total_cycle_counter))

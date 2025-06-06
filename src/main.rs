@@ -19,36 +19,49 @@ struct Cli {
     /// The gameboy rom file
     rom: String,
 
-    /// Setting uses more battery and set the CPU to 100% but could sometimes solve inconsistent timing.
-    #[arg(long)]
-    loop_lock_timing: bool,
-
+    /// Serial communication input from a FIFO file
     #[arg(long)]
     fifo_input: Option<String>,
 
+    /// Serial communication output from a FIFO file
     #[arg(long)]
     fifo_output: Option<String>,
 
+    /// Record the inputs into a file when they happen so it can be replayed with --replay-input
     #[arg(long)]
     record_input: Option<String>,
 
+    /// Replay the inputs from the file recorded by record_input
     #[arg(long)]
     replay_input: Option<String>,
 
+    /// The file to which the state will be save when using the X (North) button of the controller
+    /// and loaded from when using the --load-state parameter
     #[arg(long)]
     state_file: Option<String>,
 
+    /// Start at the state defined by --state-file instead of the start of bootrom with empty mem
     #[arg(short, long, default_value_t = false)]
     load_state: bool,
 
+    /// Gets inputs from keyboard instead of gamepad
     #[arg(short, long, default_value_t = false)]
     keyboard: bool,
 
     #[arg(short, long, default_value_t = 1.0)]
     speed: f32,
 
+    /// Will print all of the opcodes executed (WARNING: THERE ARE MANY)
     #[arg(short, long, default_value_t = false)]
     debug: bool,
+
+    /// Skip bootrom (will start the execution at 0x100 with all registers empty
+    #[arg(long, default_value_t = false)]
+    skip_bootrom: bool,
+
+    /// Dump state to files on stop
+    #[arg(long, default_value_t = false)]
+    stop_dump_state: bool,
 }
 
 fn main() {
@@ -92,5 +105,13 @@ fn main() {
         gameboy.load_state().unwrap();
     }
 
+    if cli.skip_bootrom {
+        gameboy.skip_bootrom();
+    }
+
     gameboy.start();
+
+    if cli.stop_dump_state {
+        gameboy.dump_state().unwrap();
+    }
 }

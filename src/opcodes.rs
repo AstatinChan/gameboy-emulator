@@ -608,7 +608,10 @@ impl<S: Serial, A: Audio> GBState<S, A> {
             0b000 => match n1 {
                 0b000 => 4,
                 0b001 => self.ldnnsp(),
-                0b010 => todo!("STOP"),
+                0b010 => {
+                    self.is_stopped = true;
+                    4
+                },
                 0b011 => self.jr8(),
                 _ => self.jrcc8(n1),
             },

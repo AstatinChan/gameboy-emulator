@@ -314,6 +314,7 @@ pub struct GBState<S: Serial, A: Audio> {
     pub cpu: CPU,
     pub mem: Memory<S, A>,
     pub is_debug: bool,
+    pub is_stopped: bool,
 
     pub div_cycles: u64,
     pub tima_cycles: u64,
@@ -327,6 +328,7 @@ impl<S: Serial, A: Audio> GBState<S, A> {
             cpu: CPU::new(),
             mem,
             is_debug: false,
+            is_stopped: false,
 
             div_cycles: 0,
             tima_cycles: 0,
