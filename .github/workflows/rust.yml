@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - run: sudo apt-get install -yqq alsa
     - uses: actions/checkout@v4
+    - run: sudo apt-get install -yqq alsa libasound2-dev libudev-dev
     - name: Download assembler
       run: wget https://github.com/AstatinChan/gameboy-asm/releases/download/latest/gbasm_linux-x86_64
     - name: Make assembler executable

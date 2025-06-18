@@ -4,11 +4,29 @@ Hii !! This is the emulator I use to make [BunnyLand (Temporary name)](https://g
 
 # Building the emulator
 
-For reasons related to my Japanese visa, I will not distribute the boot roms in this repo, but I'm sure you know how to use the internet.
+You need to put the bootrom you want the emulator to use in `assets/dmg_boot.bin`. There are a few bootroms you can find on the internet.
 
-You need to put the dmg boot rom in the file `assets/dmg_boot.bin` and the cgb boot rom in the file `assets/cgb_boot.bin`.
+If you want to use the Astatin logo bootrom the source is provided in `assets/Astatin-bootrom.gbasm`. 
 
-When you have both the boot roms ready, build the emulator with `cargo build --release`. It will give you a binary in `target/release/emulator`.
+To assemble it yourself:
+```bash
+# Downloading directly the executable of the assembler (For linux x86_64)
+# Alternatively you can follow the instructions here:
+#   https://github.com/AstatinChan/gameboy-asm/blob/latest/README.md
+# to compile it yourself
+wget https://github.com/AstatinChan/gameboy-asm/releases/download/latest/gbasm_linux-x86_64
+chmod +x gbasm_linux-x86-64
+
+# Assembling the bootrom
+./gbasm_linux-x86_64 assets/Astatin-bootrom.gbasm assets/dmg_boot.bin
+```
+
+After that you can build the emulator with
+```bash
+cargo build --release
+```
+
+The executable will be built in `target/release/emulator`
 
 # Usage
 
@@ -24,8 +42,6 @@ If you do not set the `-k` cli parameter, the emulator will try to find a gamepa
 If there is the message `No gamepad found` in the first messages, it means your gamepad hasn't been detected or initialized properly. Connect a gamepad and restart the emulator to fix it. It should print `Found Gamepad id: GamepadId(0)` instead.
 
 (I don't know which gamepad exactly. The 8BitDo SF30 Pro in USB mode on Arch Linux works. That's all I know lol)
-
-## CPU Usage
 
 ## Speed
 
@@ -52,10 +68,6 @@ This command will force the use of the keyboard:
 ```bash
 emulator <gameboy_rom> -k
 ```
-
-## Timing issues
-
-Timing used to be inaccurate using sleep syscalls. The problem should now be fixed but if the timing is inconsistant on your system you can try to use the `--loop-lock-timing` and see if it is better. Note that using this will set your CPU usage to 100%.
 
 ## Serial communication
 
