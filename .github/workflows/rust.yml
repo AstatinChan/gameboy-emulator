@@ -1,0 +1,37 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download assembler
+      run: wget https://github.com/AstatinChan/gameboy-asm/releases/download/latest/gbasm_linux-x86_64
+    - name: Make assembler executable
+      run: chmod +x gbasm_linux-x86_64
+    - name: Build BootROM
+      run: ./gbasm_linux-x86_64 assets/Astatin-bootrom.gbasm assets/dmg_boot.bin
+    - name: Build Emulator
+      run: cargo build --verbose
+    - name: Rename to clarify OS & architecture
+      run: mv target/release/emulator gb_linux-x86_64
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Development Build"
+        files: |
+          gb_linux-x86_64
