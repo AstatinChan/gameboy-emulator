@@ -35,13 +35,13 @@ fn draw(frame: &mut [u8], fb: &[u32; 160 * 144]) {
 }
 
 impl<'a> DesktopWindow<'a> {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new(title: impl Into<String>) -> Result<Self, Error> {
         let event_loop = EventLoop::new().unwrap();
         let input = WinitInputHelper::new();
         let window = Arc::new({
-            let size = LogicalSize::new(WIDTH as f64, HEIGHT as f64);
+            let size = LogicalSize::new((WIDTH * 4) as f64, (HEIGHT * 4) as f64);
             WindowBuilder::new()
-                .with_title("Gameboy Emulator")
+                .with_title(title.into())
                 .with_inner_size(size)
                 .with_min_inner_size(size)
                 .build(&event_loop)

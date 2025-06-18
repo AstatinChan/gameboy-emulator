@@ -62,6 +62,10 @@ struct Cli {
     /// Dump state to files on stop
     #[arg(long, default_value_t = false)]
     stop_dump_state: bool,
+
+    /// Window title
+    #[arg(long, default_value = "Gameboy Emulator")]
+    title: String
 }
 
 fn main() {
@@ -70,7 +74,7 @@ fn main() {
     println!("Starting {:?}...", &cli.rom);
 
     let serial = desktop::serial::UnconnectedSerial {};
-    let window = desktop::window::DesktopWindow::new().unwrap();
+    let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
 
     let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
         Box::new(GamepadReplay::new(record_file))
