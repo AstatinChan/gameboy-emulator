@@ -94,6 +94,7 @@ LD ($24), A
 LD C, $58
 Loop:
 	LD B, $12
+
 	.Wait_VBlank:
 		LD A, ($44)
 		CP $90
@@ -104,18 +105,25 @@ Loop:
 		JR NZ, =.Wait_VBlank
 
 	LD A, C
-	LD ($42), A
 	DEC C
+
+	CP $c0
+	JR Z, =End
+	JR NC, =Loop
+
+	CP $04
+	JR C, =Loop
+
+	LD ($42), A
+
+	LD D, $c1
+	CALL Z, =.sound1
+
 	CP $06
 	LD D, $83
 	CALL Z, =.sound1
-	CP $04
-	JR NZ, =Loop
-	LD D, $c1
-	CALL =.sound1
 
-	.Lock:
-	JP =End
+	JR =Loop
 
 	.sound1:
 		LD E, A
@@ -125,7 +133,6 @@ Loop:
 		LD ($14), A
 		LD A, E
 		RET
-
 
 Logo:
 .DB $3f, $ff, $f0, $f0
