@@ -10,7 +10,7 @@ pub mod state;
 
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
-use crate::io::Input;
+use crate::io::{Serial, Input};
 use clap::Parser;
 
 #[derive(Parser)]
@@ -73,8 +73,12 @@ fn main() {
 
     println!("Starting {:?}...", &cli.rom);
 
-    let serial = desktop::serial::UnconnectedSerial {};
     let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
+
+    let serial: Box<dyn Serial> = match (cli.fifo_input, cli.fifo_output) {
+        (Some(fifo_input), Some(fifo_output)) => Box::new(desktop::serial::FIFOSerial::new(fifo_input, fifo_output)),
+        _ => Box::new(desktop::serial::UnconnectedSerial {})
+    };
 
     let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
         Box::new(GamepadReplay::new(record_file))

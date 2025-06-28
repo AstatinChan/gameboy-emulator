@@ -35,14 +35,29 @@ pub trait Window {
 }
 
 pub trait Serial {
-    // Should not be blocking
-    fn write(&mut self, byte: u8);
-    fn read(&mut self) -> u8;
+    fn read_data(&self) -> u8;
+    fn read_control(&self) -> u8;
+    fn write_data(&mut self, data: u8);
+    fn write_control(&mut self, control: u8);
+    fn update_serial(&mut self, cycles: u128) -> bool;
+}
 
-    fn new_transfer(&mut self) -> bool; // since last read
-    fn clock_master(&mut self) -> bool;
-
-    fn set_clock_master(&mut self, clock_master: bool);
+impl<T: Serial + ?Sized> Serial for Box<T> {
+    fn read_data(&self) -> u8 {
+        (**self).read_data()
+    }
+    fn read_control(&self) -> u8 {
+        (**self).read_data()
+    }
+    fn write_data(&mut self, data: u8) {
+        (**self).write_data(data);
+    }
+    fn write_control(&mut self, control: u8) {
+        (**self).write_control(control);
+    }
+    fn update_serial(&mut self, cycles: u128) -> bool {
+        (**self).update_serial(cycles)
+    }
 }
 
 pub trait Audio {
@@ -154,7 +169,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             state.tima_timer(c);
             state.update_display_interrupts(c);
             state.check_interrupts();
-            state.mem.update_serial();
+            state.mem.update_serial(total_cycle_counter);
 
             nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / *speed) as f64;
 

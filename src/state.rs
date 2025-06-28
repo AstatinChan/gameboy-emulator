@@ -167,15 +167,6 @@ pub struct Memory<S: Serial, A: Audio> {
     pub timer_enabled: bool,
 
     pub timer_speed: u8,
-
-    pub serial_data: u8,
-
-    pub serial_control: u8,
-}
-
-mod serial_control_flags {
-    pub const CLOCK_SELECT: u8 = 0b1;
-    pub const TRANSFER_ENABLE: u8 = 0b10000000;
 }
 
 impl<S: Serial, A: Audio> Memory<S, A> {
@@ -214,30 +205,11 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             timer_enabled: false,
             timer_speed: 0,
             serial,
-            serial_control: 0,
-            serial_data: 0,
         }
     }
 
-    pub fn update_serial(&mut self) {
-        if self.serial.new_transfer() {
-            println!("TRANSFER ENABLED");
-            self.serial_control |= serial_control_flags::TRANSFER_ENABLE;
-        }
-
-        if self.serial.clock_master() {
-            self.serial_control |= serial_control_flags::CLOCK_SELECT;
-        } else {
-            self.serial_control &= !serial_control_flags::CLOCK_SELECT;
-        }
-
-        if (self.serial_control & serial_control_flags::CLOCK_SELECT != 0
-            || self.serial.new_transfer())
-            && self.serial_control & serial_control_flags::TRANSFER_ENABLE != 0
-        {
-            self.serial.write(self.serial_data);
-            self.serial_data = self.serial.read();
-            self.serial_control &= !serial_control_flags::TRANSFER_ENABLE;
+    pub fn update_serial(&mut self, cycles: u128) {
+        if self.serial.update_serial(cycles) {
             self.io[0x0f] |= 0b1000;
         }
     }

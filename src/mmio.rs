@@ -14,8 +14,8 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                     (self.joypad_reg & 0xf) | 0b11100000
                 }
             }
-            0x01 => self.serial_data,
-            0x02 => self.serial_control,
+            0x01 => self.serial.read_data(),
+            0x02 => self.serial.read_control(),
             0x04 => self.div,
             0x0f => self.io[0x0f],
             0x40 => self.display.lcdc,
@@ -67,17 +67,10 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                 self.joypad_is_action = !value & 0b00100000 != 0;
             }
             0x01 => {
-                self.serial_data = value;
+                self.serial.write_data(value);
             }
             0x02 => {
-                if value & 0x01 != 0 {
-                    self.serial.set_clock_master(true);
-                    println!("Set as master");
-                } else if value & 0x01 != 0 {
-                    self.serial.set_clock_master(false);
-                    println!("Set as slave");
-                }
-                self.serial_control = value;
+                self.serial.write_control(value);
             }
             0x04 => {
                 self.div = 0;

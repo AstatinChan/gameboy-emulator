@@ -1,130 +1,128 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::io::Serial;
+use crate::consts::CPU_CLOCK_SPEED;
 
 pub struct UnconnectedSerial {}
 
 impl Serial for UnconnectedSerial {
-    fn write(&mut self, byte: u8) {
-        println!("Writing {} to unconnected serial", byte);
+    fn read_data(&self) -> u8 {
+        0xff
     }
-
-    fn read(&mut self) -> u8 {
-        println!("Reading 0 from unconnected serial");
+    fn read_control(&self) -> u8 {
         0
     }
-
-    fn new_transfer(&mut self) -> bool {
+    fn write_data(&mut self, _data: u8) {
+    }
+    fn write_control(&mut self, _control: u8) {
+    }
+    fn update_serial(&mut self, _cycles: u128) -> bool {
         false
     }
-
-    fn clock_master(&mut self) -> bool {
-        false
-    }
-
-    fn set_clock_master(&mut self, _clock_master: bool) {}
 }
 
-pub struct FIFOPackage {
-    t: bool,
-    value: u8,
+enum FIFOMessage {
+    Request(u8),
+    Response(u8),
 }
 
 pub struct FIFOSerial {
+    transfer_requested: bool,
+    current_transfer: bool,
+    current_data: u8,
+
+    external_clock: bool,
+    next_byte_transfer_cycle: u128,
+
     input: Receiver<u8>,
-    output: Sender<FIFOPackage>,
-    clock_change: Receiver<bool>,
-    last_read_byte: u8,
-    clock_master: bool,
+    output: Sender<u8>,
 }
 
 impl FIFOSerial {
     pub fn new(input_path: String, output_path: String) -> FIFOSerial {
         let (tx, input) = mpsc::channel::<u8>();
-        let (clock_tx, clock_change) = mpsc::channel::<bool>();
         thread::spawn(move || {
             let mut input_f = File::open(input_path).unwrap();
             loop {
-                let mut byte = [0, 0];
+                let mut byte = [0];
 
                 input_f.read(&mut byte).unwrap();
-                if byte[0] == 1 {
-                    tx.send(byte[1]).unwrap();
-                } else {
-                    clock_tx.send(byte[1] == 0).unwrap();
-                }
+
+                tx.send(byte[0]).unwrap();
             }
         });
 
-        let (output, rx) = mpsc::channel::<FIFOPackage>();
+        let (output, rx) = mpsc::channel::<u8>();
         thread::spawn(move || {
             let mut output_f = File::create(output_path).unwrap();
             for b in rx.iter() {
-                if b.t {
-                    output_f.write(&[1, b.value]).unwrap();
-                } else {
-                    output_f.write(&[0, b.value]).unwrap();
-                }
+                output_f.write(&[b]).unwrap();
             }
         });
 
         FIFOSerial {
+            transfer_requested: false,
+            current_transfer: false,
+            current_data: 0,
+
+            external_clock: false,
+            next_byte_transfer_cycle: 0,
+
             input,
             output,
-            clock_change,
-            last_read_byte: 0xff,
-            clock_master: false,
         }
     }
 }
 
 impl Serial for FIFOSerial {
-    fn write(&mut self, byte: u8) {
-        println!("Writing {} to fifo serial", byte);
-        if let Err(err) = self.output.send(FIFOPackage {
-            t: true,
-            value: byte,
-        }) {
-            eprintln!("Error while sending serial package: {}", err);
-        };
+    fn read_data(&self) -> u8 {
+        self.current_data
     }
 
-    fn read(&mut self) -> u8 {
-        println!("Reading {} from fifo serial", self.last_read_byte);
-        self.last_read_byte
+    fn read_control(&self) -> u8 {
+        (if self.external_clock { 0 } else { 0x01 }) | 
+            (if self.transfer_requested { 0x80 } else { 0 })
     }
 
-    fn new_transfer(&mut self) -> bool {
-        match self.input.try_recv() {
-            Ok(byte) => {
-                println!("Received: {}", byte);
-                self.last_read_byte = byte;
-                true
+    fn write_data(&mut self, data: u8) {
+        self.current_data = data;
+    }
+
+    fn write_control(&mut self, control: u8) {
+        self.external_clock = (control & 0b01) == 0;
+        self.transfer_requested = (control & 0x80) != 0;
+    }
+
+    fn update_serial(&mut self, cycles: u128) -> bool {
+        if let Ok(x) = self.input.try_recv() {
+            if self.current_transfer {
+                self.current_data = x;
+                self.external_clock = false;
+                self.transfer_requested = false;
+                self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 1024);
+                self.current_transfer = false;
+            } else {
+                self.output.send(self.current_data).unwrap();
+                println!("recv {:02x}, send back {:02x}", x, self.current_data);
+                self.current_data = x;
+                self.external_clock = true;
+                self.transfer_requested = false;
             }
-            _ => false,
-        }
-    }
-    fn clock_master(&mut self) -> bool {
-        match self.clock_change.try_recv() {
-            Ok(byte) => {
-                println!("Received clock change, master: {}", byte);
-                self.clock_master = byte;
-            }
-            _ => {}
-        };
-        self.clock_master
-    }
-
-    fn set_clock_master(&mut self, clock_master: bool) {
-        self.clock_master = clock_master;
-        if let Err(err) = self.output.send(FIFOPackage {
-            t: false,
-            value: (if clock_master { 1 } else { 0 }),
-        }) {
-            eprintln!("Error while sending serial package: {}", err);
+            true
+        } else if !self.external_clock && !self.current_transfer
+            && self.transfer_requested {
+                if cycles > self.next_byte_transfer_cycle {
+                    self.output.send(self.current_data).unwrap();
+                    println!("send {:02x}", self.current_data);
+                    self.current_transfer = true;
+                }
+            false
+        } else {
+            false
         }
     }
 }
