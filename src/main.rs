@@ -65,7 +65,19 @@ struct Cli {
 
     /// Window title
     #[arg(long, default_value = "Gameboy Emulator")]
-    title: String
+    title: String,
+
+    /// Serial tcp listen port
+    #[arg(short='L', long)]
+    listen: Option<u16>,
+
+    /// Serial tcp connect port
+    #[arg(short, long)]
+    connect: Option<String>,
+
+    /// Don't send (or expect) a byte as a response to a serial transfer
+    #[arg(long, default_value_t = false)]
+    no_response: bool,
 }
 
 fn main() {
@@ -75,8 +87,10 @@ fn main() {
 
     let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
 
-    let serial: Box<dyn Serial> = match (cli.fifo_input, cli.fifo_output) {
-        (Some(fifo_input), Some(fifo_output)) => Box::new(desktop::serial::FIFOSerial::new(fifo_input, fifo_output)),
+    let serial: Box<dyn Serial> = match (cli.fifo_input, cli.fifo_output, cli.listen, cli.connect) {
+        (_, _, Some(port), _) => Box::new(desktop::serial::TcpSerial::new_listener(port, cli.no_response)),
+        (_, _, _, Some(addr)) => Box::new(desktop::serial::TcpSerial::connect(addr, cli.no_response)),
+        (Some(fifo_input), Some(fifo_output), _, _) => Box::new(desktop::serial::FIFOSerial::new(fifo_input, fifo_output, cli.no_response)),
         _ => Box::new(desktop::serial::UnconnectedSerial {})
     };
 
