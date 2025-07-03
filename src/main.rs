@@ -71,7 +71,7 @@ struct Cli {
     #[arg(short='L', long)]
     listen: Option<u16>,
 
-    /// Serial tcp connect port
+    /// Serial tcp connect address <address:port>
     #[arg(short, long)]
     connect: Option<String>,
 

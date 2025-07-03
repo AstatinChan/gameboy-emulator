@@ -39,6 +39,8 @@ emulator <gameboy_rom>
 
 If you do not set the `-k` cli parameter, the emulator will try to find a gamepad.
 
+There is no automatic gamepad reconnection. The gamepad must be detected at the start of the emulator and not be disconnected.
+
 If there is the message `No gamepad found` in the first messages, it means your gamepad hasn't been detected or initialized properly. Connect a gamepad and restart the emulator to fix it. It should print `Found Gamepad id: GamepadId(0)` instead.
 
 (I don't know which gamepad exactly. The 8BitDo SF30 Pro in USB mode on Arch Linux works. That's all I know lol)
@@ -71,7 +73,11 @@ emulator <gameboy_rom> -k
 
 ## Serial communication
 
-Serial communication is currently work in progress and doesn't work with basic ROMs but the `--fifo-input` and `--fifo-output` can already be tested by passing files created with mkfifo. If the goal is to allow communication between two gameboy, one gameboy's input should be the other's output.
+Serial communication can be used through tcp using the -L and -c arguments.  
+One gameboy will use the -L to listen for connection on a port and the other will connect to the first one using the ip address and port of the first one.
+
+If the two emulators are on the same machine, two linux fifo files can also be used with --fifo-input and --fifo-output.  
+The files must be created before and the input fifo file of one must be the output of the other.
 
 # Contributing
 
