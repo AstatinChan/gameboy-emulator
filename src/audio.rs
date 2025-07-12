@@ -1,13 +1,13 @@
 // You are entering a very scary territory of magic numbers and arbitrary math operations.
 // I don't remember why I did all of this but it works I guess :3
 
-use crate::io::Audio;
+use crate::io::{self, Audio};
 
 use std::sync::{Arc, Mutex};
 
 pub const SAMPLE_RATE: u32 = 65536;
 
-const SAMPLE_AVERAGING: usize = 5; //20;
+const SAMPLE_AVERAGING: usize = 1; //20;
 
 const SQUARE_WAVE_PATTERN_DUTY_0: [u8; 32] = [
     0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
@@ -15,18 +15,18 @@ const SQUARE_WAVE_PATTERN_DUTY_0: [u8; 32] = [
 ];
 
 const SQUARE_WAVE_PATTERN_DUTY_1: [u8; 32] = [
-    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
-    0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0, 0, 0, 0,
+    0xd, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe,
+    0xf, 0xe, 0xf, 0xe, 0xd, 2, 0, 1, 0, 1, 0, 1, 2,
 ];
 
 const SQUARE_WAVE_PATTERN_DUTY_2: [u8; 32] = [
-    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0xd, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xd, 2, 0, 1, 0, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2,
 ];
 
 const SQUARE_WAVE_PATTERN_DUTY_3: [u8; 32] = [
-    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0,
+    0xd, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xd, 2, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+    0, 1, 0, 1, 0, 2,
 ];
 
 /*
@@ -83,7 +83,7 @@ const SQUARE_WAVE_PATTERNS: [[u8; 32]; 4] = [
 #[derive(Clone, Debug)]
 pub struct Wave {
     period_value: u16,
-    num_sample: usize,
+    pub num_sample: usize,
     wave_pattern: [u8; 32],
     length_timer: u8,
     length_timer_enabled: bool,
@@ -95,10 +95,14 @@ pub struct Wave {
     period_sweep_pace: u8,
     period_sweep_direction: u8,
     period_sweep_slope: u8,
+
+    left_volume: u8,
+    right_volume: u8,
 }
 
 impl Wave {
     pub fn new(
+        num_sample: usize,
         period_value: u16,
         wave_pattern: [u8; 32],
         env_initial_volume: u8,
@@ -109,10 +113,12 @@ impl Wave {
         period_sweep_pace: u8,
         period_sweep_direction: u8,
         period_sweep_slope: u8,
+        left_volume: u8,
+        right_volume: u8,
     ) -> Wave {
         Wave {
             period_value,
-            num_sample: 0,
+            num_sample,
             wave_pattern,
             env_initial_volume: env_initial_volume as f32,
             env_direction: if env_direction == 0 { -1. } else { 1. },
@@ -122,15 +128,17 @@ impl Wave {
             period_sweep_pace,
             period_sweep_direction,
             period_sweep_slope,
+            left_volume,
+            right_volume,
         }
     }
 }
 
-impl Iterator for Wave {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<f32> {
-        self.num_sample = self.num_sample.wrapping_add(1);
+impl io::Wave for Wave {
+    fn next(&mut self, left: bool) -> Option<f32> {
+        if left {
+            self.num_sample = self.num_sample.wrapping_add(1);
+        }
 
         let mut period_value = self.period_value;
 
@@ -202,13 +210,19 @@ impl Iterator for Wave {
             }
         }
 
-        Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 64.)
+        if left {
+            avg = (self.left_volume as f32 / 8.) * avg;
+        } else {
+            avg = (self.right_volume as f32 / 8.) * avg;
+        }
+
+        Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 32.)
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct NoiseWave {
-    num_sample: usize,
+    pub num_sample: usize,
     length_timer: u8,
     length_timer_enabled: bool,
 
@@ -223,6 +237,7 @@ pub struct NoiseWave {
 
 impl NoiseWave {
     pub fn new(
+        num_sample: usize,
         env_initial_volume: u8,
         env_direction: u8,
         env_sweep_pace: u8,
@@ -233,7 +248,7 @@ impl NoiseWave {
         clock_divider: u8,
     ) -> NoiseWave {
         NoiseWave {
-            num_sample: 0,
+            num_sample,
             env_initial_volume: env_initial_volume as f32,
             env_direction: if env_direction == 0 { -1. } else { 1. },
             env_sweep_pace,
@@ -246,11 +261,11 @@ impl NoiseWave {
     }
 }
 
-impl Iterator for NoiseWave {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<f32> {
-        self.num_sample = self.num_sample.wrapping_add(1);
+impl io::Wave for NoiseWave {
+    fn next(&mut self, left: bool) -> Option<f32> {
+        if left {
+            self.num_sample = self.num_sample.wrapping_add(1);
+        }
 
         let clock_divider = if self.clock_divider == 0 {
             0.5
@@ -300,7 +315,7 @@ impl Iterator for NoiseWave {
             }
         }
 
-        Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 64.)
+        Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 32.)
     }
 }
 
@@ -328,17 +343,15 @@ impl MutableWave {
     }
 }
 
-impl Iterator for MutableWave {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<f32> {
+impl io::Wave for MutableWave {
+    fn next(&mut self, left: bool) -> Option<f32> {
         let mut res = 0.;
 
         // Imagine using an Arc<Mutex<>> in a sound wave generation function that needs to reliably
         // run 65536 times a second. Couldn't be me :3
         if let Ok(mut wave_o) = self.wave_ch1.lock() {
             if let Some(wave) = wave_o.as_mut() {
-                if let Some(result) = wave.next() {
+                if let Some(result) = wave.next(left) {
                     res += result / 4.;
                 } else {
                     *wave_o = None;
@@ -348,7 +361,7 @@ impl Iterator for MutableWave {
 
         if let Ok(mut wave_o) = self.wave_ch2.lock() {
             if let Some(wave) = wave_o.as_mut() {
-                if let Some(result) = wave.next() {
+                if let Some(result) = wave.next(left) {
                     res += result / 4.;
                 } else {
                     *wave_o = None;
@@ -358,7 +371,7 @@ impl Iterator for MutableWave {
 
         if let Ok(mut wave_o) = self.wave_ch3.lock() {
             if let Some(wave) = wave_o.as_mut() {
-                if let Some(result) = wave.next() {
+                if let Some(result) = wave.next(left) {
                     res += result / 4.;
                 } else {
                     *wave_o = None;
@@ -368,7 +381,7 @@ impl Iterator for MutableWave {
 
         if let Ok(mut wave_o) = self.wave_ch4.lock() {
             if let Some(wave) = wave_o.as_mut() {
-                if let Some(result) = wave.next() {
+                if let Some(result) = wave.next(left) {
                     res += result / 4.;
                 } else {
                     *wave_o = None;
@@ -394,6 +407,10 @@ pub struct AudioSquareChannel {
     pub period_sweep_pace: u8,
     pub period_sweep_direction: u8,
     pub period_sweep_slope: u8,
+    pub left: bool,
+    pub right: bool,
+    pub left_volume: u8,
+    pub right_volume: u8
 }
 
 impl AudioSquareChannel {
@@ -411,13 +428,23 @@ impl AudioSquareChannel {
             period_sweep_pace: 0,
             period_sweep_direction: 0,
             period_sweep_slope: 0,
+            left: true,
+            right: true,
+            left_volume: 7,
+            right_volume: 7,
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, reset: bool) {
         if let Ok(mut wave) = self.wave.lock() {
-            if self.on {
+            let num_sample = if let Some(w) = &*wave {
+                w.num_sample
+            } else {
+                0
+            };
+            if self.on && (reset || wave.is_some()) {
                 *wave = Some(Wave::new(
+                    if reset { 0 } else { num_sample },
                     2048 - self.period_value,
                     SQUARE_WAVE_PATTERNS[self.duty as usize],
                     self.initial_volume,
@@ -428,6 +455,8 @@ impl AudioSquareChannel {
                     self.period_sweep_pace,
                     self.period_sweep_direction,
                     self.period_sweep_slope,
+                    if self.left { self.left_volume + 1 } else { 0 },
+                    if self.right { self.right_volume + 1 } else { 0 },
                 ));
             } else {
                 *wave = None;
@@ -449,6 +478,11 @@ pub struct AudioCustomChannel {
     pub on: bool,
     pub period_value: u16,
     pub initial_volume: u8,
+
+    pub left: bool,
+    pub right: bool,
+    pub left_volume: u8,
+    pub right_volume: u8
 }
 
 impl AudioCustomChannel {
@@ -461,13 +495,24 @@ impl AudioCustomChannel {
             wave,
             length_timer: 0,
             length_timer_enabled: false,
+
+            left: true,
+            right: true,
+            left_volume: 7,
+            right_volume: 7,
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, reset: bool) {
         if let Ok(mut wave) = self.wave.lock() {
-            if self.on {
+            let num_sample = if let Some(w) = &*wave {
+                w.num_sample
+            } else {
+                0
+            };
+            if self.on && (reset || wave.is_some()) {
                 *wave = Some(Wave::new(
+                    if reset { 0 } else { num_sample },
                     2 * (2048 - (self.period_value * 2)),
                     self.wave_pattern,
                     self.initial_volume,
@@ -478,6 +523,8 @@ impl AudioCustomChannel {
                     0,
                     0,
                     0,
+                    if self.left { self.left_volume + 1 } else { 0 },
+                    if self.right { self.right_volume + 1 } else { 0 },
                 ));
             } else {
                 *wave = None;
@@ -502,6 +549,11 @@ pub struct AudioNoiseChannel {
     pub clock_shift: u8,
     pub lsfr_width: u8,
     pub clock_divider: u8,
+
+    pub left: bool,
+    pub right: bool,
+    pub left_volume: u8,
+    pub right_volume: u8
 }
 
 impl AudioNoiseChannel {
@@ -517,13 +569,24 @@ impl AudioNoiseChannel {
             clock_shift: 0,
             lsfr_width: 0,
             clock_divider: 0,
+
+            left: true,
+            right: true,
+            left_volume: 7,
+            right_volume: 7,
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, reset: bool) {
         if let Ok(mut wave) = self.wave.lock() {
-            if self.on {
+            let num_sample = if let Some(w) = &*wave {
+                w.num_sample
+            } else {
+                0
+            };
+            if self.on && (reset || wave.is_some()) {
                 *wave = Some(NoiseWave::new(
+                    if reset { 0 } else { num_sample },
                     self.initial_volume,
                     self.env_direction,
                     self.sweep,

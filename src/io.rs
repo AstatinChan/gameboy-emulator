@@ -60,8 +60,12 @@ impl<T: Serial + ?Sized> Serial for Box<T> {
     }
 }
 
+pub trait Wave {
+    fn next(&mut self, left: bool) -> Option<f32>;
+}
+
 pub trait Audio {
-    fn new<S: Iterator<Item = f32> + Send + 'static>(wave: S) -> Self;
+    fn new<S: Wave + Send + 'static>(wave: S) -> Self;
 }
 
 pub trait LoadSave

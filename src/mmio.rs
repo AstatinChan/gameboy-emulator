@@ -92,47 +92,58 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                 self.audio.ch1.period_sweep_pace = (0b1110000 & value) >> 4;
                 self.audio.ch1.period_sweep_direction = (0b1000 & value) >> 3;
                 self.audio.ch1.period_sweep_slope = 0b111 & value;
+                self.audio.ch1.update(false);
             }
             0x11 => {
                 self.audio.ch1.duty = value >> 6;
                 self.audio.ch1.length_timer = value & 0b111111;
+                self.audio.ch1.update(false);
             }
             0x12 => {
                 self.audio.ch1.initial_volume = value >> 4;
                 self.audio.ch1.env_direction = (value & 0xf) >> 3;
                 self.audio.ch1.sweep = value & 0b111;
+                self.audio.ch1.update(false);
             }
             0x13 => {
                 self.audio.ch1.period_value &= 0xff00;
                 self.audio.ch1.period_value |= value as u16;
+                self.audio.ch1.update(false);
             }
             0x14 => {
                 self.audio.ch1.period_value &= 0xff;
                 self.audio.ch1.period_value |= ((value & 0b111) as u16) << 8;
                 self.audio.ch1.length_timer_enabled = value & 0b01000000 != 0;
                 if value >> 7 == 1 {
-                    self.audio.ch1.update();
+                    self.audio.ch1.update(true);
+                } else {
+                    self.audio.ch1.update(false);
                 }
             }
             0x16 => {
                 self.audio.ch2.duty = value >> 6;
                 self.audio.ch2.length_timer = value & 0b111111;
+                self.audio.ch2.update(false);
             }
             0x17 => {
                 self.audio.ch2.initial_volume = value >> 4;
                 self.audio.ch2.env_direction = (value & 0xf) >> 3;
                 self.audio.ch2.sweep = value & 0b111;
+                self.audio.ch2.update(false);
             }
             0x18 => {
                 self.audio.ch2.period_value &= 0xff00;
                 self.audio.ch2.period_value |= value as u16;
+                self.audio.ch2.update(false);
             }
             0x19 => {
                 self.audio.ch2.period_value &= 0xff;
                 self.audio.ch2.period_value |= ((value & 0b111) as u16) << 8;
                 self.audio.ch2.length_timer_enabled = value & 0b01000000 != 0;
                 if value >> 7 == 1 {
-                    self.audio.ch2.update();
+                    self.audio.ch2.update(true);
+                } else {
+                    self.audio.ch2.update(false);
                 }
             }
             0x1a => {
@@ -141,10 +152,11 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                 } else {
                     self.audio.ch3.on = false;
                 }
-                self.audio.ch3.update();
+                self.audio.ch3.update(true);
             }
             0x1b => {
                 self.audio.ch3.length_timer = value & 0b111111;
+                self.audio.ch3.update(false);
             }
             0x1c => {
                 let s = (value >> 5) & 0b11;
@@ -153,10 +165,12 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                 } else {
                     self.audio.ch3.initial_volume = 0xf >> (s - 1);
                 }
+                self.audio.ch3.update(false);
             }
             0x1d => {
                 self.audio.ch3.period_value &= 0xff00;
                 self.audio.ch3.period_value |= value as u16;
+                self.audio.ch3.update(false);
             }
             0x1e => {
                 self.audio.ch3.period_value &= 0xff;
@@ -164,27 +178,67 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                 self.audio.ch3.period_value /= 2;
                 self.audio.ch3.length_timer_enabled = value & 0b01000000 != 0;
                 if value >> 7 == 1 {
-                    self.audio.ch3.update();
+                    self.audio.ch3.update(true);
+                } else {
+                    self.audio.ch3.update(false);
                 }
             }
             0x20 => {
                 self.audio.ch4.length_timer = value & 0b111111;
+                self.audio.ch4.update(false);
             }
             0x21 => {
                 self.audio.ch4.initial_volume = value >> 4;
                 self.audio.ch4.env_direction = (value & 0xf) >> 3;
                 self.audio.ch4.sweep = value & 0b111;
+                self.audio.ch4.update(false);
             }
             0x22 => {
                 self.audio.ch4.clock_shift = value >> 4;
                 self.audio.ch4.lsfr_width = (value & 0xf) >> 3;
                 self.audio.ch4.clock_divider = value & 0b111;
+                self.audio.ch4.update(false);
             }
             0x23 => {
                 self.audio.ch4.length_timer_enabled = value & 0b01000000 != 0;
                 if value >> 7 == 1 {
-                    self.audio.ch4.update();
+                    self.audio.ch4.update(true);
+                } else {
+                    self.audio.ch4.update(false);
                 }
+            }
+            0x24 => {
+                let right_volume = value & 0x7;
+                let left_volume = value & 0x70 >> 4;
+
+                self.audio.ch1.right_volume = right_volume;
+                self.audio.ch2.right_volume = right_volume;
+                self.audio.ch3.right_volume = right_volume;
+                self.audio.ch4.right_volume = right_volume;
+
+                self.audio.ch1.left_volume = left_volume;
+                self.audio.ch2.left_volume = left_volume;
+                self.audio.ch3.left_volume = left_volume;
+                self.audio.ch4.left_volume = left_volume;
+
+                self.audio.ch1.update(false);
+                self.audio.ch2.update(false);
+                self.audio.ch3.update(false);
+                self.audio.ch4.update(false);
+            }
+            0x25 => {
+                self.audio.ch1.right = value & 0x01 != 0;
+                self.audio.ch2.right = value & 0x02 != 0;
+                self.audio.ch3.right = value & 0x04 != 0;
+                self.audio.ch4.right = value & 0x08 != 0;
+                self.audio.ch1.left = value & 0x10 != 0;
+                self.audio.ch2.left = value & 0x20 != 0;
+                self.audio.ch3.left = value & 0x40 != 0;
+                self.audio.ch4.left = value & 0x80 != 0;
+                self.audio.ch1.update(false);
+                self.audio.ch2.update(false);
+                self.audio.ch3.update(false);
+                self.audio.ch4.update(false);
             }
             0x40 => self.display.lcdc = value,
             0x41 => {
