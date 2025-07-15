@@ -29,50 +29,6 @@ const SQUARE_WAVE_PATTERN_DUTY_3: [u8; 32] = [
     0, 1, 0, 1, 0, 2,
 ];
 
-/*
- * Sometimes, you have to abandon the idea of doing things the right way and just do the thing.
- *
- * The Gameboy noise wave generation function is stateful and the sample averaging feature (a
- * low pass filter to filter out some weird noises created by the "too squared" nature of our
- * sound wave) needs a pure function (and fast). It's too hard so I just computed the result
- * of the noise function and put it here. It's O(1) :3
- */
-
-const NOISE_WAVE: [u16; 1023] = [
-    1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1,
-    1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0,
-    0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0,
-    0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1,
-    1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0,
-    0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1,
-    0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0,
-    0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0,
-    1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0,
-    0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0,
-    0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1,
-    1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0,
-    0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1,
-    1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1,
-    0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1,
-    1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1,
-    0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-    0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1,
-    0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
-    1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-    1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0,
-    0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1,
-    1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1,
-    0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1,
-    1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1,
-    1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0,
-    0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0,
-    1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1,
-    0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1,
-];
-
 const SQUARE_WAVE_PATTERNS: [[u8; 32]; 4] = [
     SQUARE_WAVE_PATTERN_DUTY_0,
     SQUARE_WAVE_PATTERN_DUTY_1,
@@ -233,6 +189,12 @@ pub struct NoiseWave {
     clock_shift: u8,
     lsfr_width: u8,
     clock_divider: u8,
+
+    rng: u16,
+    last_i: usize,
+
+    left_volume: u8,
+    right_volume: u8,
 }
 
 impl NoiseWave {
@@ -246,6 +208,8 @@ impl NoiseWave {
         clock_shift: u8,
         lsfr_width: u8,
         clock_divider: u8,
+        left_volume: u8,
+        right_volume: u8,
     ) -> NoiseWave {
         NoiseWave {
             num_sample,
@@ -257,6 +221,10 @@ impl NoiseWave {
             clock_shift,
             lsfr_width,
             clock_divider,
+            rng: 0x42,
+            last_i: 0,
+            left_volume,
+            right_volume,
         }
     }
 }
@@ -296,26 +264,31 @@ impl io::Wave for NoiseWave {
             envelope
         };
 
-        let mut avg = 0.;
+        let ns = ((262144. / ((clock_divider) * (2 << self.clock_shift) as f32)) / 32768.)
+            * self.num_sample as f32;
 
-        for n in 0..SAMPLE_AVERAGING {
-            if self.num_sample as i32 + n as i32 - SAMPLE_AVERAGING as i32 >= 0 {
-                let ns = ((262144. / ((clock_divider) * (2 << self.clock_shift) as f32)) / 32768.)
-                    * (self.num_sample + n - (SAMPLE_AVERAGING / 2)) as f32;
+        let i = (ns as f32 * (32768 as f32 / SAMPLE_RATE as f32)) as usize;
 
-                let i = (ns as f32 * (32768 as f32 / SAMPLE_RATE as f32)) as usize;
+        let up = self.rng & 1;
+        if i != self.last_i {
+            self.last_i = i;
 
-                let up = if self.lsfr_width == 1 {
-                    NOISE_WAVE[i % 63]
-                } else {
-                    NOISE_WAVE[i % 1023]
-                };
-
-                avg += up as f32 * 2. - 1.;
+            self.rng >>= 1;
+            if self.lsfr_width == 1 {
+                self.rng |= ((self.rng & 1) ^ ((self.rng >> 1) & 1)) << 7;
+            } else {
+                self.rng |= ((self.rng & 1) ^ ((self.rng >> 1) & 1)) << 15;
             }
         }
 
-        Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 32.)
+        let mut res = up as f32 * 2. - 1.;
+        if left {
+            res = (self.left_volume as f32 / 8.) * res;
+        } else {
+            res = (self.right_volume as f32 / 8.) * res;
+        }
+
+        Some(res * envelope_boundaries / 64.)
     }
 }
 
@@ -595,6 +568,8 @@ impl AudioNoiseChannel {
                     self.clock_shift,
                     self.lsfr_width,
                     self.clock_divider,
+                    if self.left { self.left_volume + 1 } else { 0 },
+                    if self.right { self.right_volume + 1 } else { 0 },
                 ));
             } else {
                 *wave = None;

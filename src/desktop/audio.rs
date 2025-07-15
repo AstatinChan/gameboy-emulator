@@ -18,7 +18,9 @@ impl<W: Wave + Send + 'static> Iterator for RodioWave<W>
     fn next(&mut self) -> Option<Self::Item> {
         self.1 += 1;
         let left = self.1 % 2 == 0;
-        self.0.next(left)
+        let result = self.0.next(left);
+
+        result
     }
 }
 
