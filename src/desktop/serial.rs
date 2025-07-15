@@ -138,7 +138,6 @@ pub struct TcpSerial {
 
     external_clock: bool,
     next_byte_transfer_cycle: u128,
-    next_byte_receive_cycle: u128,
 
     no_response: bool,
 
@@ -188,7 +187,6 @@ impl TcpSerial {
 
             external_clock: false,
             next_byte_transfer_cycle: 0,
-            next_byte_receive_cycle: 0,
 
             input,
             output,
@@ -214,7 +212,6 @@ impl TcpSerial {
 
             external_clock: false,
             next_byte_transfer_cycle: 0,
-            next_byte_receive_cycle: 0,
 
             input,
             output,

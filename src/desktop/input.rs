@@ -130,46 +130,47 @@ impl Keyboard {
 
 impl Input for Keyboard {
     fn update_events(&mut self, _cycles: u128) -> Option<u128> {
-        let mut res = 0xf;
-        let keys = self.keys.borrow();
+        if let Ok(keys) = self.keys.lock() {
+            let mut res = 0xf;
 
-        if keys.contains(&KeyCode::KeyA) {
-            res &= 0b1110;
+            if (*keys).contains(&KeyCode::KeyA) {
+                res &= 0b1110;
+            }
+
+            if (*keys).contains(&KeyCode::KeyB) {
+                res &= 0b1101;
+            }
+
+            if (*keys).contains(&KeyCode::Backspace) {
+                res &= 0b1011;
+            }
+
+            if (*keys).contains(&KeyCode::Enter) {
+                res &= 0b0111;
+            }
+
+            self.action_reg = res;
+
+            let mut res = 0xf;
+
+            if (*keys).contains(&KeyCode::ArrowRight) {
+                res &= 0b1110;
+            }
+
+            if (*keys).contains(&KeyCode::ArrowLeft) {
+                res &= 0b1101;
+            }
+
+            if (*keys).contains(&KeyCode::ArrowUp) {
+                res &= 0b1011;
+            }
+
+            if (*keys).contains(&KeyCode::ArrowDown) {
+                res &= 0b0111;
+            }
+
+            self.direction_reg = res;
         }
-
-        if keys.contains(&KeyCode::KeyB) {
-            res &= 0b1101;
-        }
-
-        if keys.contains(&KeyCode::Backspace) {
-            res &= 0b1011;
-        }
-
-        if keys.contains(&KeyCode::Enter) {
-            res &= 0b0111;
-        }
-
-        self.action_reg = res;
-
-        let mut res = 0xf;
-
-        if keys.contains(&KeyCode::ArrowRight) {
-            res &= 0b1110;
-        }
-
-        if keys.contains(&KeyCode::ArrowLeft) {
-            res &= 0b1101;
-        }
-
-        if keys.contains(&KeyCode::ArrowUp) {
-            res &= 0b1011;
-        }
-
-        if keys.contains(&KeyCode::ArrowDown) {
-            res &= 0b0111;
-        }
-
-        self.direction_reg = res;
 
         None
     }

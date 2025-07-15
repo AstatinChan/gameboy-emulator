@@ -31,7 +31,7 @@ pub enum WindowSignal {
 }
 
 pub trait Window {
-    fn update(&mut self, fb: &[u32; 160 * 144]) -> Option<WindowSignal>;
+    fn update(&mut self, fb: Box<[u32; 160 * 144]>) -> Option<WindowSignal>;
 }
 
 pub trait Serial {
@@ -208,8 +208,8 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             }
 
             if nanos_sleep > 0.0 {
-                if let Some(fb) = state.mem.display.redraw_request {
-                    if let Some(WindowSignal::Exit) = window.update(&fb) {
+                if let Some(fb) = state.mem.display.get_redraw_request() {
+                    if let Some(WindowSignal::Exit) = window.update(fb) {
                         break;
                     }
                 }

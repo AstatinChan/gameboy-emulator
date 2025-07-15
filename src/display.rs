@@ -2,6 +2,7 @@
 
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
 use std::time::SystemTime;
+use std::mem;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
 
@@ -27,15 +28,15 @@ pub enum DisplayInterrupt {
 
 #[derive(Debug)]
 pub struct Display {
-    framebuffer: [u32; 160 * 144],
-    bg_buffer: [u8; 160 * 144],
+    framebuffer: Box<[u32; 160 * 144]>,
+    bg_buffer: Box<[u8; 160 * 144]>,
 
-    tiledata: [u8; 0x3000],
-    bg_map_attr: [u8; 0x400],
-    tilemaps: [u8; 0x800],
-    oam: [u8; 0xa0],
+    tiledata: Box<[u8; 0x3000]>,
+    bg_map_attr: Box<[u8; 0x400]>,
+    tilemaps: Box<[u8; 0x800]>,
+    oam: Box<[u8; 0xa0]>,
 
-    pub cram: [u8; 0x80],
+    pub cram: Box<[u8; 0x80]>,
     pub bg_palette: u8,
     pub obj_palettes: [u8; 2],
     pub viewport_y: u8,
@@ -56,19 +57,19 @@ pub struct Display {
 
     pub stat: u64,
 
-    pub redraw_request: Option<[u32; 160 * 144]>,
+    pub redraw_request: Option<Box<[u32; 160 * 144]>>,
 }
 
 impl Display {
     pub fn new() -> Self {
         Self {
-            framebuffer: [0; 160 * 144],
-            bg_buffer: [0; 160 * 144],
-            tiledata: [0; 0x3000],
-            bg_map_attr: [0; 0x400],
-            cram: [0; 0x80],
-            tilemaps: [0; 0x800],
-            oam: [0; 0xa0],
+            framebuffer: Box::new([0; 160 * 144]),
+            bg_buffer: Box::new([0; 160 * 144]),
+            tiledata: Box::new([0; 0x3000]),
+            bg_map_attr: Box::new([0; 0x400]),
+            cram: Box::new([0; 0x80]),
+            tilemaps: Box::new([0; 0x800]),
+            oam: Box::new([0; 0xa0]),
             bg_palette: 0,
             vram_bank: 0,
             obj_palettes: [0; 2],
@@ -89,7 +90,7 @@ impl Display {
     }
 
     pub fn cls(&mut self) {
-        self.framebuffer = [COLORS[0]; 160 * 144];
+        self.framebuffer = Box::new([COLORS[0]; 160 * 144]);
     }
 
     pub fn color_palette(&self, color_byte: u8, palette: u8, cgb_mode: bool) -> u32 {
@@ -332,7 +333,7 @@ impl Display {
                     .as_micros()
                     > DISPLAY_UPDATE_SLEEP_TIME_MICROS as u128
                 {
-                    self.redraw_request = Some(self.framebuffer);
+                    self.redraw_request = Some(self.framebuffer.clone());
                     self.last_dt = SystemTime::now();
                 }
 
@@ -351,5 +352,13 @@ impl Display {
         }
 
         return ret_interrupt;
+    }
+
+    pub fn get_redraw_request(&mut self) -> Option<Box<[u32; 160 * 144]>> {
+        let mut result = None;
+
+        mem::swap(&mut result, &mut self.redraw_request);
+
+        result
     }
 }

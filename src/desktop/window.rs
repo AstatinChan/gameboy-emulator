@@ -1,83 +1,76 @@
-use std::cell::RefCell;
 use std::collections::HashSet;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread;
 
 use crate::io::{Window, WindowSignal};
 
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event_loop::EventLoopBuilder;
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::platform::pump_events::EventLoopExtPumpEvents;
-use winit::window::{Window as WinitWindow, WindowBuilder};
+use winit::platform::wayland::EventLoopBuilderExtWayland;
+use winit::window::{WindowBuilder};
 use winit_input_helper::WinitInputHelper;
 
 const WIDTH: u32 = 160;
 const HEIGHT: u32 = 144;
 
-pub type Keys = Rc<RefCell<HashSet<KeyCode>>>;
+pub type Keys = Arc<Mutex<HashSet<KeyCode>>>;
 
-pub struct DesktopWindow<'a> {
-    event_loop: EventLoop<()>,
-    input: WinitInputHelper,
-    window: Arc<WinitWindow>,
-    pixels: Pixels<'a>,
+pub struct DesktopWindow {
+    fb_send: Sender<Box<[u32; 160 * 144]>>,
+    signal_recv: Receiver<WindowSignal>,
     pub keys: Keys,
 }
 
-fn draw(frame: &mut [u8], fb: &[u32; 160 * 144]) {
-    for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-        pixel.copy_from_slice(&((fb[i] << 8) | 0xff).to_be_bytes())
-    }
-}
-
-impl<'a> DesktopWindow<'a> {
+impl DesktopWindow {
     pub fn new(title: impl Into<String>) -> Result<Self, Error> {
-        let event_loop = EventLoop::new().unwrap();
-        let input = WinitInputHelper::new();
-        let window = Arc::new({
-            let size = LogicalSize::new((WIDTH * 4) as f64, (HEIGHT * 4) as f64);
-            WindowBuilder::new()
-                .with_title(title.into())
-                .with_inner_size(size)
-                .with_min_inner_size(size)
-                .build(&event_loop)
-                .unwrap()
-        });
+        let title: String = title.into();
+        let (fb_send, fb_recv) = channel();
+        let (signal_send, signal_recv) = channel();
 
-        let pixels = {
-            let window_size = window.inner_size();
-            let surface_texture =
-                SurfaceTexture::new(window_size.width, window_size.height, window.clone());
-            Pixels::new(WIDTH, HEIGHT, surface_texture)?
-        };
+        let keys = Arc::new(Mutex::new(HashSet::new()));
 
-        Ok(Self {
-            event_loop,
-            input,
-            window,
-            pixels,
-            keys: Rc::new(HashSet::new().into()),
-        })
-    }
-}
+        let key_eventloop = keys.clone();
+        thread::spawn(move || {
+            let keys = key_eventloop;
+            let event_loop = EventLoopBuilder::new().with_any_thread(true).build().unwrap();
+            let mut input = WinitInputHelper::new();
+            let window = Arc::new({
+                let size = LogicalSize::new((WIDTH * 4) as f64, (HEIGHT * 4) as f64);
+                WindowBuilder::new()
+                    .with_title(title)
+                    .with_inner_size(size)
+                    .with_min_inner_size(size)
+                    .build(&event_loop)
+                    .unwrap()
+            });
 
-impl<'a> Window for DesktopWindow<'a> {
-    fn update(&mut self, fb: &[u32; 160 * 144]) -> Option<WindowSignal> {
-        let mut res = None;
-        let mut keys = (*self.keys).borrow_mut();
-        self.event_loop
-            .pump_events(Some(Duration::ZERO), |event, elwt| {
+            let mut pixels = {
+                let window_size = window.inner_size();
+                let surface_texture =
+                    SurfaceTexture::new(window_size.width, window_size.height, window.clone());
+                Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap()
+            };
+            let mut fb = Box::new([0; 160 * 144]);
+            event_loop
+            .run(|event, elwt| {
                 if let Event::WindowEvent {
                     event: WindowEvent::RedrawRequested,
                     ..
                 } = event
                 {
-                    draw(self.pixels.frame_mut(), fb);
-                    if let Err(err) = self.pixels.render() {
+                    loop {
+                        if let Ok(new_fb) = fb_recv.try_recv() {
+                            fb = new_fb;
+                        } else {
+                            break;
+                        }
+                    }
+                    draw(pixels.frame_mut(), &fb);
+                    if let Err(err) = pixels.render() {
                         eprintln!("Error during render: {}", err);
                         return;
                     }
@@ -93,33 +86,63 @@ impl<'a> Window for DesktopWindow<'a> {
                         },
                 } = event
                 {
-                    if let PhysicalKey::Code(keycode) = keyboard_event.physical_key {
-                        if keyboard_event.state.is_pressed() {
-                            keys.insert(keycode);
-                        } else {
-                            keys.remove(&keycode);
+                    if let Ok(mut keys) = keys.lock() {
+                        if let PhysicalKey::Code(keycode) = keyboard_event.physical_key {
+                            if keyboard_event.state.is_pressed() {
+                                (*keys).insert(keycode);
+                            } else {
+                                (*keys).remove(&keycode);
+                            }
                         }
                     }
                 }
 
-                if self.input.update(&event) {
-                    if self.input.close_requested() {
+                if input.update(&event) {
+                    if input.close_requested() {
                         elwt.exit();
-                        res = Some(WindowSignal::Exit);
+                        if let Err(err) = signal_send.send(WindowSignal::Exit) {
+                            eprintln!("window signal send failed with error {}", err);
+                        }
                         return;
                     }
 
-                    if let Some(size) = self.input.window_resized() {
-                        if let Err(err) = self.pixels.resize_surface(size.width, size.height) {
+                    if let Some(size) = input.window_resized() {
+                        if let Err(err) = pixels.resize_surface(size.width, size.height) {
                             eprintln!("Error during resize: {}", err);
                             return;
                         }
                     }
 
-                    self.window.request_redraw();
+                    window.request_redraw();
                 }
-            });
+            }).unwrap();
+        });
 
-        res
+
+        Ok(Self {
+            fb_send,
+            signal_recv,
+            keys,
+        })
+    }
+}
+
+impl Window for DesktopWindow {
+    fn update(&mut self, fb: Box<[u32; 160 * 144]>) -> Option<WindowSignal> {
+        if let Err(err) = self.fb_send.send(fb) {
+            eprintln!("Framebuffer channel send failed with error: {}", err);
+        }
+
+        if let Ok(signal) = self.signal_recv.try_recv() {
+            Some(signal)
+        } else {
+            None
+        }
+    }
+}
+
+fn draw(frame: &mut [u8], fb: &[u32; 160 * 144]) {
+    for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+        pixel.copy_from_slice(&((fb[i] << 8) | 0xff).to_be_bytes())
     }
 }
