@@ -1,8 +1,8 @@
 // Very readable, much clean wow.
 
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
-use std::time::SystemTime;
 use std::mem;
+use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
 

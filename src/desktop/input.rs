@@ -3,9 +3,9 @@ use std::io::{ErrorKind, Read, Write};
 
 use crate::desktop::window::Keys;
 use crate::io::Input;
+use crate::logs::{elog, log, LogLevel};
 use gilrs::{Button, GamepadId, Gilrs};
 use winit::keyboard::KeyCode;
-use crate::logs::{elog, log, LogLevel};
 
 pub struct Gamepad {
     gilrs: Gilrs,
@@ -18,7 +18,10 @@ impl Gamepad {
         let gilrs = Gilrs::new().unwrap();
 
         let gamepad_id = if let Some((gamepad_id, _gamepad)) = gilrs.gamepads().next() {
-            log(LogLevel::Infos, format!("Gamepad connected: {:?}", gamepad_id));
+            log(
+                LogLevel::Infos,
+                format!("Gamepad connected: {:?}", gamepad_id),
+            );
             Some(gamepad_id)
         } else {
             log(LogLevel::Infos, format!("No gamepad found"));
@@ -45,12 +48,18 @@ impl Input for Gamepad {
     fn update_events(&mut self, _cycles: u128) -> Option<u128> {
         if let Some(gamepad_id) = self.gamepad_id {
             if self.gilrs.connected_gamepad(gamepad_id).is_none() {
-                log(LogLevel::Infos, format!("Gamepad disconnected: {:?}", gamepad_id));
+                log(
+                    LogLevel::Infos,
+                    format!("Gamepad disconnected: {:?}", gamepad_id),
+                );
                 self.gamepad_id = None;
             }
         } else {
             if let Some((gamepad_id, _gamepad)) = self.gilrs.gamepads().next() {
-                log(LogLevel::Infos, format!("Gamepad connected: {:?}", gamepad_id));
+                log(
+                    LogLevel::Infos,
+                    format!("Gamepad connected: {:?}", gamepad_id),
+                );
                 self.gamepad_id = Some(gamepad_id);
             }
         }
@@ -227,21 +236,33 @@ impl Input for GamepadRecorder {
         let new_direction_reg = self.input.get_direction_gamepad_reg();
 
         if self.action_reg != new_action_reg || self.direction_reg != new_direction_reg {
-            log(LogLevel::Debug, format!(
-                "input update on cycle {} ! 0x{:02x} 0x{:02x}",
-                cycles, new_action_reg, new_direction_reg
-            ));
+            log(
+                LogLevel::Debug,
+                format!(
+                    "input update on cycle {} ! 0x{:02x} 0x{:02x}",
+                    cycles, new_action_reg, new_direction_reg
+                ),
+            );
             if let Err(err) = self.record_file.write_all(&cycles.to_le_bytes()) {
-                elog(LogLevel::Error, format!("Failed to write to record file: {}", err));
+                elog(
+                    LogLevel::Error,
+                    format!("Failed to write to record file: {}", err),
+                );
             };
             if let Err(err) = self
                 .record_file
                 .write_all(&[new_action_reg, new_direction_reg])
             {
-                elog(LogLevel::Error, format!("Failed to write to record file: {}", err));
+                elog(
+                    LogLevel::Error,
+                    format!("Failed to write to record file: {}", err),
+                );
             }
             if let Err(err) = self.record_file.flush() {
-                elog(LogLevel::Error, format!("Failed to flush record file writes: {}", err));
+                elog(
+                    LogLevel::Error,
+                    format!("Failed to flush record file writes: {}", err),
+                );
             }
         }
 

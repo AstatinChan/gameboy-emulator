@@ -4,15 +4,15 @@ pub mod desktop;
 pub mod display;
 pub mod interrupts_timers;
 pub mod io;
+pub mod logs;
 pub mod mmio;
 pub mod opcodes;
 pub mod state;
-pub mod logs;
 
-use crate::logs::{log, LogLevel};
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
-use crate::io::{Serial, Input};
+use crate::io::{Input, Serial};
+use crate::logs::{log, LogLevel};
 use clap::Parser;
 
 #[derive(Parser)]
@@ -66,7 +66,7 @@ struct Cli {
     title: String,
 
     /// Serial tcp listen port
-    #[arg(short='L', long)]
+    #[arg(short = 'L', long)]
     listen: Option<u16>,
 
     /// Serial tcp connect address <address:port>
@@ -91,12 +91,20 @@ fn main() {
 
     let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
 
-    let serial: Box<dyn Serial> = match (cli.fifo_input, cli.fifo_output, cli.listen, cli.connect) {
-        (_, _, Some(port), _) => Box::new(desktop::serial::TcpSerial::new_listener(port, cli.no_response)),
-        (_, _, _, Some(addr)) => Box::new(desktop::serial::TcpSerial::connect(addr, cli.no_response)),
-        (Some(fifo_input), Some(fifo_output), _, _) => Box::new(desktop::serial::FIFOSerial::new(fifo_input, fifo_output, cli.no_response)),
-        _ => Box::new(desktop::serial::UnconnectedSerial {})
-    };
+    let serial: Box<dyn Serial> =
+        match (cli.fifo_input, cli.fifo_output, cli.listen, cli.connect) {
+            (_, _, Some(port), _) => Box::new(desktop::serial::TcpSerial::new_listener(
+                port,
+                cli.no_response,
+            )),
+            (_, _, _, Some(addr)) => {
+                Box::new(desktop::serial::TcpSerial::connect(addr, cli.no_response))
+            }
+            (Some(fifo_input), Some(fifo_output), _, _) => Box::new(
+                desktop::serial::FIFOSerial::new(fifo_input, fifo_output, cli.no_response),
+            ),
+            _ => Box::new(desktop::serial::UnconnectedSerial {}),
+        };
 
     let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
         Box::new(GamepadReplay::new(record_file))

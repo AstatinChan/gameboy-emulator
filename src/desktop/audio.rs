@@ -1,9 +1,9 @@
 use rodio::{OutputStream, Sink, Source};
 
-use crate::audio::{SAMPLE_RATE, MutableWave};
-use crate::io::{Wave, Audio};
-use std::time::Duration;
+use crate::audio::{MutableWave, SAMPLE_RATE};
+use crate::io::{Audio, Wave};
 use std::mem;
+use std::time::Duration;
 
 const BUFFER_SIZE: usize = 1024;
 
@@ -17,8 +17,7 @@ pub struct RodioAudio {
 
 struct RodioWave<W: Wave + Send + 'static>(W, usize);
 
-impl<W: Wave + Send + 'static> Iterator for RodioWave<W>
-{
+impl<W: Wave + Send + 'static> Iterator for RodioWave<W> {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -40,8 +39,7 @@ impl<I: Iterator<Item = f32>> Iterator for RodioBuffer<I> {
     }
 }
 
-impl<I: Iterator<Item = f32>> Source for RodioBuffer<I>
-{
+impl<I: Iterator<Item = f32>> Source for RodioBuffer<I> {
     fn current_frame_len(&self) -> Option<usize> {
         None
     }

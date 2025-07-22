@@ -1,5 +1,5 @@
-use std::sync::OnceLock;
 use std::collections::HashSet;
+use std::sync::OnceLock;
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub enum LogLevel {
@@ -16,12 +16,22 @@ pub fn set_log_level(verbosity: String) {
     let mut set: HashSet<LogLevel> = HashSet::new();
     for level in verbosity.split(",") {
         match level {
-            "infos" => { set.insert(LogLevel::Infos); },
-            "debug" => { set.insert(LogLevel::Debug); },
-            "opcode_dump" => { set.insert(LogLevel::OpcodeDump); },
-            "halt_cycles" => { set.insert(LogLevel::HaltCycles); },
-            "errors" => { set.insert(LogLevel::Error); },
-            "none" => {},
+            "infos" => {
+                set.insert(LogLevel::Infos);
+            }
+            "debug" => {
+                set.insert(LogLevel::Debug);
+            }
+            "opcode_dump" => {
+                set.insert(LogLevel::OpcodeDump);
+            }
+            "halt_cycles" => {
+                set.insert(LogLevel::HaltCycles);
+            }
+            "errors" => {
+                set.insert(LogLevel::Error);
+            }
+            "none" => {}
             _ => panic!("Unknown log level \"{}\"", level),
         }
     }

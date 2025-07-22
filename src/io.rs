@@ -3,8 +3,8 @@ use std::{thread, time};
 
 use crate::audio::MutableWave;
 use crate::consts;
+use crate::logs::{elog, log, LogLevel};
 use crate::state::GBState;
-use crate::logs::{log, elog, LogLevel};
 
 pub trait Input {
     fn update_events(&mut self, cycles: u128) -> Option<u128>;
@@ -105,14 +105,22 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             load_save,
         };
 
-        gb.load_save.load_bootrom(gb.state.mem.boot_rom.as_mut()).unwrap();
+        gb.load_save
+            .load_bootrom(gb.state.mem.boot_rom.as_mut())
+            .unwrap();
         gb.load_save.load_rom(gb.state.mem.rom.as_mut()).unwrap();
 
-        if let Err(err) = gb.load_save.load_external_ram(gb.state.mem.external_ram.as_mut()) {
-            log(LogLevel::Infos, format!(
-                "Loading save failed ({}). Initializing new external ram.",
-                err
-            ));
+        if let Err(err) = gb
+            .load_save
+            .load_external_ram(gb.state.mem.external_ram.as_mut())
+        {
+            log(
+                LogLevel::Infos,
+                format!(
+                    "Loading save failed ({}). Initializing new external ram.",
+                    err
+                ),
+            );
         }
 
         gb
@@ -122,7 +130,6 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
         self.load_save.load_state(&mut self.state)?;
         Ok(())
     }
-
 
     pub fn dump_state(&mut self) -> Result<(), LS::Error> {
         self.load_save.dump_state(&mut self.state)?;
@@ -228,7 +235,10 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
                 if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
                     if let Err(err) = load_save.save_external_ram(state.mem.external_ram.as_ref()) {
-                        elog(LogLevel::Error, format!("Failed to save external RAM ({})", err));
+                        elog(
+                            LogLevel::Error,
+                            format!("Failed to save external RAM ({})", err),
+                        );
                     }
                 }
                 last_ram_bank_enabled = state.mem.ram_bank_enabled;

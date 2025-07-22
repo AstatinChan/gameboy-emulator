@@ -241,10 +241,13 @@ impl<S: Serial, A: Audio> Memory<S, A> {
         } else if addr == 0xffff {
             self.interrupts_register
         } else {
-            log(LogLevel::Debug, format!(
-                "Trying to read at address 0x{:04x} which is unimplemented",
-                addr
-            ));
+            log(
+                LogLevel::Debug,
+                format!(
+                    "Trying to read at address 0x{:04x} which is unimplemented",
+                    addr
+                ),
+            );
             0
         }
     }
@@ -275,10 +278,13 @@ impl<S: Serial, A: Audio> Memory<S, A> {
         } else if addr == 0xffff {
             self.interrupts_register = value;
         } else {
-            log(LogLevel::Debug, format!(
-                "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
-                addr, value
-            ));
+            log(
+                LogLevel::Debug,
+                format!(
+                    "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
+                    addr, value
+                ),
+            );
         }
     }
 }

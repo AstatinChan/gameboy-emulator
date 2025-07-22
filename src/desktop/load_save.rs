@@ -1,8 +1,8 @@
 use crate::io::{Audio, LoadSave, Serial};
+use crate::logs::{elog, log, LogLevel};
 use crate::state::GBState;
 use std::fs::File;
 use std::io::{Read, Write};
-use crate::logs::{elog, log, LogLevel};
 
 #[derive(Debug)]
 pub struct FSLoadSave {
@@ -62,7 +62,10 @@ impl LoadSave for FSLoadSave {
 
         f.read(external_ram)?;
 
-        log(LogLevel::Infos, format!("Save file loaded from \"{}\"!", self.save_file));
+        log(
+            LogLevel::Infos,
+            format!("Save file loaded from \"{}\"!", self.save_file),
+        );
 
         Ok(())
     }
@@ -72,7 +75,10 @@ impl LoadSave for FSLoadSave {
 
         f.write_all(&external_ram)?;
 
-        log(LogLevel::Infos, format!("Save written to \"{}\"!", self.save_file));
+        log(
+            LogLevel::Infos,
+            format!("Save written to \"{}\"!", self.save_file),
+        );
 
         Ok(())
     }
@@ -147,7 +153,10 @@ impl LoadSave for FSLoadSave {
             state_file.write_all(&state.cpu.sp.to_le_bytes())?;
             state_file.write_all(&[state.mem.boot_rom_on.into(), state.mem.ime.into()])?;
         } else {
-            elog(LogLevel::Error, format!("Tried to save state without state_file specified"));
+            elog(
+                LogLevel::Error,
+                format!("Tried to save state without state_file specified"),
+            );
         }
         Ok(())
     }

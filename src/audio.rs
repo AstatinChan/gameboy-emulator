@@ -383,7 +383,7 @@ pub struct AudioSquareChannel {
     pub left: bool,
     pub right: bool,
     pub left_volume: u8,
-    pub right_volume: u8
+    pub right_volume: u8,
 }
 
 impl AudioSquareChannel {
@@ -455,7 +455,7 @@ pub struct AudioCustomChannel {
     pub left: bool,
     pub right: bool,
     pub left_volume: u8,
-    pub right_volume: u8
+    pub right_volume: u8,
 }
 
 impl AudioCustomChannel {
@@ -526,7 +526,7 @@ pub struct AudioNoiseChannel {
     pub left: bool,
     pub right: bool,
     pub left_volume: u8,
-    pub right_volume: u8
+    pub right_volume: u8,
 }
 
 impl AudioNoiseChannel {

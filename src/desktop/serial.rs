@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io::{Read, Write};
-use std::sync::mpsc::{self, Receiver, Sender};
 use std::net::{TcpListener, TcpStream};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
-use crate::io::Serial;
 use crate::consts::CPU_CLOCK_SPEED;
+use crate::io::Serial;
 
 pub struct UnconnectedSerial {}
 
@@ -16,10 +16,8 @@ impl Serial for UnconnectedSerial {
     fn read_control(&self) -> u8 {
         0
     }
-    fn write_data(&mut self, _data: u8) {
-    }
-    fn write_control(&mut self, _control: u8) {
-    }
+    fn write_data(&mut self, _data: u8) {}
+    fn write_control(&mut self, _control: u8) {}
     fn update_serial(&mut self, _cycles: u128) -> bool {
         false
     }
@@ -82,8 +80,8 @@ impl Serial for FIFOSerial {
     }
 
     fn read_control(&self) -> u8 {
-        (if self.external_clock { 0 } else { 0x01 }) |
-            (if self.transfer_requested { 0x80 } else { 0 })
+        (if self.external_clock { 0 } else { 0x01 })
+            | (if self.transfer_requested { 0x80 } else { 0 })
     }
 
     fn write_data(&mut self, data: u8) {
@@ -112,18 +110,17 @@ impl Serial for FIFOSerial {
                 self.transfer_requested = false;
             }
             true
-        } else if !self.external_clock && !self.current_transfer
-            && self.transfer_requested {
-                if cycles > self.next_byte_transfer_cycle {
-                    self.output.send(self.current_data).unwrap();
-                    self.current_transfer = true;
-                    if self.no_response {
-                        self.current_data = 0;
-                        self.transfer_requested = false;
-                        self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 1024);
-                        self.current_transfer = false;
-                    }
+        } else if !self.external_clock && !self.current_transfer && self.transfer_requested {
+            if cycles > self.next_byte_transfer_cycle {
+                self.output.send(self.current_data).unwrap();
+                self.current_transfer = true;
+                if self.no_response {
+                    self.current_data = 0;
+                    self.transfer_requested = false;
+                    self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 1024);
+                    self.current_transfer = false;
                 }
+            }
             false
         } else {
             false
@@ -147,22 +144,20 @@ pub struct TcpSerial {
 
 impl TcpSerial {
     pub fn handle_stream(mut stream: TcpStream, tx: Sender<u8>, rx: Receiver<u8>) {
-            let mut stream_clone = stream.try_clone().unwrap();
-            thread::spawn(move || {
-                loop {
-                    let mut byte = [0];
+        let mut stream_clone = stream.try_clone().unwrap();
+        thread::spawn(move || loop {
+            let mut byte = [0];
 
-                    stream_clone.read(&mut byte).unwrap();
+            stream_clone.read(&mut byte).unwrap();
 
-                    tx.send(byte[0]).unwrap();
-                }
-            });
+            tx.send(byte[0]).unwrap();
+        });
 
-            thread::spawn(move || {
-                for b in rx.iter() {
-                    stream.write(&[b]).unwrap();
-                }
-            });
+        thread::spawn(move || {
+            for b in rx.iter() {
+                stream.write(&[b]).unwrap();
+            }
+        });
     }
 
     pub fn new_listener(port: u16, no_response: bool) -> Self {
@@ -174,7 +169,7 @@ impl TcpSerial {
                     println!("Connection on {:?}", addr);
                     Self::handle_stream(socket, tx, rx);
                 }
-                _ => ()
+                _ => (),
             };
         });
 
@@ -197,9 +192,9 @@ impl TcpSerial {
         let (tx, input) = mpsc::channel::<u8>();
         let (output, rx) = mpsc::channel::<u8>();
         thread::spawn(move || {
-            if let Ok(socket) =  TcpStream::connect(&addr) {
-                    println!("Connected to {:?}", addr);
-                    Self::handle_stream(socket, tx, rx);
+            if let Ok(socket) = TcpStream::connect(&addr) {
+                println!("Connected to {:?}", addr);
+                Self::handle_stream(socket, tx, rx);
             }
         });
 
@@ -225,8 +220,8 @@ impl Serial for TcpSerial {
     }
 
     fn read_control(&self) -> u8 {
-        (if self.external_clock { 0 } else { 0x01 }) | 
-            (if self.transfer_requested { 0x80 } else { 0 })
+        (if self.external_clock { 0 } else { 0x01 })
+            | (if self.transfer_requested { 0x80 } else { 0 })
     }
 
     fn write_data(&mut self, data: u8) {
@@ -259,18 +254,17 @@ impl Serial for TcpSerial {
             }
             self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 16384);
             true
-        } else if !self.external_clock && !self.current_transfer
-            && self.transfer_requested {
-                if cycles > self.next_byte_transfer_cycle {
-                    self.output.send(self.current_data).unwrap();
-                    self.current_transfer = true;
-                    if self.no_response {
-                        self.current_data = 0;
-                        self.transfer_requested = false;
-                        self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 1024);
-                        self.current_transfer = false;
-                    }
+        } else if !self.external_clock && !self.current_transfer && self.transfer_requested {
+            if cycles > self.next_byte_transfer_cycle {
+                self.output.send(self.current_data).unwrap();
+                self.current_transfer = true;
+                if self.no_response {
+                    self.current_data = 0;
+                    self.transfer_requested = false;
+                    self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 1024);
+                    self.current_transfer = false;
                 }
+            }
             false
         } else {
             false
