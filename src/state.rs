@@ -2,6 +2,7 @@ use crate::audio::Channels;
 use crate::consts::{PROGRAM_START_ADDRESS, STACK_START_ADDRESS};
 use crate::display::Display;
 use crate::io::{Audio, Serial};
+use crate::logs::{log, LogLevel};
 
 pub mod reg {
     pub const B: u8 = 0;
@@ -87,7 +88,7 @@ impl CPU {
     }
 
     pub fn print_debug(&mut self) {
-        println!(
+        log(LogLevel::Debug, format!(
             "PC: 0x{:04x}, SP: 0x{:04x}, A: 0x{:02x}, BC: 0x{:04x}, DE: 0x{:04x}, HL: 0x{:04x}, F: 0x{:02x}. Since last dbg: {} cycles",
             self.pc,
             self.sp,
@@ -97,7 +98,7 @@ impl CPU {
             self.r16(reg::HL),
             self.r[reg::F as usize],
             self.dbg_cycle_counter,
-        );
+        ));
 
         self.dbg_cycle_counter = 0;
     }
@@ -240,10 +241,10 @@ impl<S: Serial, A: Audio> Memory<S, A> {
         } else if addr == 0xffff {
             self.interrupts_register
         } else {
-            println!(
+            log(LogLevel::Debug, format!(
                 "Trying to read at address 0x{:04x} which is unimplemented",
                 addr
-            );
+            ));
             0
         }
     }
@@ -274,10 +275,10 @@ impl<S: Serial, A: Audio> Memory<S, A> {
         } else if addr == 0xffff {
             self.interrupts_register = value;
         } else {
-            println!(
+            log(LogLevel::Debug, format!(
                 "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
                 addr, value
-            );
+            ));
         }
     }
 }
@@ -285,7 +286,6 @@ impl<S: Serial, A: Audio> Memory<S, A> {
 pub struct GBState<S: Serial, A: Audio> {
     pub cpu: CPU,
     pub mem: Memory<S, A>,
-    pub is_debug: bool,
     pub is_stopped: bool,
 
     pub div_cycles: u64,
@@ -299,7 +299,6 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         Self {
             cpu: CPU::new(),
             mem,
-            is_debug: false,
             is_stopped: false,
 
             div_cycles: 0,
@@ -328,12 +327,6 @@ impl<S: Serial, A: Audio> GBState<S, A> {
             self.mem.w(self.cpu.r16(reg::HL), value);
         } else {
             panic!("r_i must be a 3 bits register input number")
-        }
-    }
-
-    pub fn debug(&self, s: &str) -> () {
-        if self.is_debug {
-            println!("{}", s);
         }
     }
 }

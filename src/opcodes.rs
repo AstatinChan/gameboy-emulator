@@ -1,5 +1,6 @@
 use crate::io::{Audio, Serial};
 use crate::state::{flag, reg, GBState};
+use crate::logs::{log, LogLevel};
 
 // The opcodes functions are returning the number of cycles used.
 
@@ -160,7 +161,7 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         let res = self.pop();
 
         if res == 0 {
-            println!("DEBUG: {:?}", self.cpu);
+            log(LogLevel::Debug, format!("CPU: {:?}", self.cpu));
             panic!("RET to start");
         }
 
@@ -835,12 +836,10 @@ impl<S: Serial, A: Audio> GBState<S, A> {
     pub fn exec_opcode(&mut self) -> u64 {
         let opcode = self.mem.r(self.cpu.pc);
 
-        if self.is_debug {
-            println!(
-                "{:02x}:{:04x} = {:02x} (IME: {})",
-                self.mem.rom_bank, self.cpu.pc, opcode, self.mem.ime
-            );
-        }
+        log(LogLevel::OpcodeDump, format!(
+            "{:02x}:{:04x} = {:02x} (IME: {})",
+            self.mem.rom_bank, self.cpu.pc, opcode, self.mem.ime
+        ));
 
         self.cpu.pc += 1;
 

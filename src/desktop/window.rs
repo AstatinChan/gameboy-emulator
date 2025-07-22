@@ -4,6 +4,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
 use crate::io::{Window, WindowSignal};
+use crate::logs::{elog, LogLevel};
 
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
@@ -71,7 +72,7 @@ impl DesktopWindow {
                     }
                     draw(pixels.frame_mut(), &fb);
                     if let Err(err) = pixels.render() {
-                        eprintln!("Error during render: {}", err);
+                        elog(LogLevel::Error, format!("Error during render: {}", err));
                         return;
                     }
                 }
@@ -101,14 +102,14 @@ impl DesktopWindow {
                     if input.close_requested() {
                         elwt.exit();
                         if let Err(err) = signal_send.send(WindowSignal::Exit) {
-                            eprintln!("window signal send failed with error {}", err);
+                            elog(LogLevel::Error, format!("window signal send failed with error {}", err));
                         }
                         return;
                     }
 
                     if let Some(size) = input.window_resized() {
                         if let Err(err) = pixels.resize_surface(size.width, size.height) {
-                            eprintln!("Error during resize: {}", err);
+                            elog(LogLevel::Error, format!("Error during resize: {}", err));
                             return;
                         }
                     }
@@ -130,7 +131,7 @@ impl DesktopWindow {
 impl Window for DesktopWindow {
     fn update(&mut self, fb: Box<[u32; 160 * 144]>) -> Option<WindowSignal> {
         if let Err(err) = self.fb_send.send(fb) {
-            eprintln!("Framebuffer channel send failed with error: {}", err);
+            elog(LogLevel::Error, format!("Framebuffer channel send failed with error: {}", err));
         }
 
         if let Ok(signal) = self.signal_recv.try_recv() {

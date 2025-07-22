@@ -4,6 +4,7 @@ use std::{thread, time};
 use crate::audio::MutableWave;
 use crate::consts;
 use crate::state::GBState;
+use crate::logs::{log, elog, LogLevel};
 
 pub trait Input {
     fn update_events(&mut self, cycles: u128) -> Option<u128>;
@@ -108,10 +109,10 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
         gb.load_save.load_rom(gb.state.mem.rom.as_mut()).unwrap();
 
         if let Err(err) = gb.load_save.load_external_ram(gb.state.mem.external_ram.as_mut()) {
-            println!(
+            log(LogLevel::Infos, format!(
                 "Loading save failed ({}). Initializing new external ram.",
                 err
-            );
+            ));
         }
 
         gb
@@ -126,10 +127,6 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
     pub fn dump_state(&mut self) -> Result<(), LS::Error> {
         self.load_save.dump_state(&mut self.state)?;
         Ok(())
-    }
-
-    pub fn debug(&mut self) {
-        self.state.is_debug = true;
     }
 
     pub fn skip_bootrom(&mut self) {
@@ -158,7 +155,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
         while !state.is_stopped {
             if was_previously_halted && !state.mem.halt {
-                println!("Halt cycles {}", halt_time);
+                log(LogLevel::HaltCycles, format!("Halt cycles {}", halt_time));
                 halt_time = 0;
             }
             was_previously_halted = state.mem.halt;
@@ -199,7 +196,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
                 if save_state {
                     if let Err(err) = load_save.save_state(&state) {
-                        eprintln!("FAILED SAVE STATE: {:?}", err);
+                        elog(LogLevel::Error, format!("Failed save state: {:?}", err));
                     }
                 }
 
@@ -231,7 +228,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
                 if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
                     if let Err(err) = load_save.save_external_ram(state.mem.external_ram.as_ref()) {
-                        println!("Failed to save external RAM ({})", err);
+                        elog(LogLevel::Error, format!("Failed to save external RAM ({})", err));
                     }
                 }
                 last_ram_bank_enabled = state.mem.ram_bank_enabled;

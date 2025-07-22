@@ -1,10 +1,11 @@
 use crate::io::{Audio, Serial};
 use crate::state::Memory;
+use crate::logs::{log, LogLevel};
 
 impl<S: Serial, A: Audio> Memory<S, A> {
     pub fn r_io(&self, addr: u8) -> u8 {
         if addr > 0x50 {
-            println!("Reading from 0xff{:02x} not implemented yet", addr);
+            log(LogLevel::Debug, format!("Reading from 0xff{:02x} not implemented yet", addr));
         }
         match addr {
             0x00 => {
@@ -55,7 +56,7 @@ impl<S: Serial, A: Audio> Memory<S, A> {
                 }
             }
             _ => {
-                println!("Reading from 0xff{:02x} not implemented yet", addr);
+                log(LogLevel::Debug, format!("Reading from 0xff{:02x} not implemented yet", addr));
                 self.io[addr as usize]
             }
         }
@@ -295,10 +296,10 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             }
             _ => {
                 if addr != 0x25 && addr != 0x24 && addr != 0x26 && addr < 0x30 && addr > 0x3f {
-                    println!(
+                    log(LogLevel::Debug, format!(
                         "Writing to 0xff{:02x} not implemented yet ({:02x})",
                         addr, value
-                    );
+                    ));
                 }
             }
         }

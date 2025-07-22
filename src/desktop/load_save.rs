@@ -2,6 +2,7 @@ use crate::io::{Audio, LoadSave, Serial};
 use crate::state::GBState;
 use std::fs::File;
 use std::io::{Read, Write};
+use crate::logs::{elog, log, LogLevel};
 
 #[derive(Debug)]
 pub struct FSLoadSave {
@@ -37,8 +38,8 @@ impl LoadSave for FSLoadSave {
     }
 
     fn load_bootrom(&self, boot_rom: &mut [u8]) -> Result<(), std::io::Error> {
-        println!("MBC: {:02x}", boot_rom[0x147]);
-        println!("CGB: {:02x}", boot_rom[0x143]);
+        log(LogLevel::Debug, format!("MBC: {:02x}", boot_rom[0x147]));
+        log(LogLevel::Debug, format!("CGB: {:02x}", boot_rom[0x143]));
 
         if boot_rom[0x143] == 0x80 || boot_rom[0x143] == 0xc0 {
             unimplemented!("CGB Boot rom is not implemented");
@@ -61,7 +62,7 @@ impl LoadSave for FSLoadSave {
 
         f.read(external_ram)?;
 
-        println!("Save file loaded from \"{}\"!", self.save_file);
+        log(LogLevel::Infos, format!("Save file loaded from \"{}\"!", self.save_file));
 
         Ok(())
     }
@@ -71,7 +72,7 @@ impl LoadSave for FSLoadSave {
 
         f.write_all(&external_ram)?;
 
-        println!("Save written to \"{}\"!", self.save_file);
+        log(LogLevel::Infos, format!("Save written to \"{}\"!", self.save_file));
 
         Ok(())
     }
@@ -146,7 +147,7 @@ impl LoadSave for FSLoadSave {
             state_file.write_all(&state.cpu.sp.to_le_bytes())?;
             state_file.write_all(&[state.mem.boot_rom_on.into(), state.mem.ime.into()])?;
         } else {
-            eprintln!("Tried to save state without state_file specified");
+            elog(LogLevel::Error, format!("Tried to save state without state_file specified"));
         }
         Ok(())
     }

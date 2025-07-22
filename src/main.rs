@@ -7,7 +7,9 @@ pub mod io;
 pub mod mmio;
 pub mod opcodes;
 pub mod state;
+pub mod logs;
 
+use crate::logs::{log, LogLevel};
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
 use crate::io::{Serial, Input};
@@ -51,10 +53,6 @@ struct Cli {
     #[arg(short, long, default_value_t = 1.0)]
     speed: f32,
 
-    /// Will print all of the opcodes executed (WARNING: THERE ARE MANY)
-    #[arg(short, long, default_value_t = false)]
-    debug: bool,
-
     /// Skip bootrom (will start the execution at 0x100 with all registers empty
     #[arg(long, default_value_t = false)]
     skip_bootrom: bool,
@@ -78,12 +76,18 @@ struct Cli {
     /// Don't send (or expect) a byte as a response to a serial transfer
     #[arg(long, default_value_t = false)]
     no_response: bool,
+
+    /// Verbosity. Coma separated values (possible values: infos/debug/opcode_dump/halt_cycles/errors,none)
+    #[arg(short, long, default_value = "infos,errors")]
+    verbosity: String,
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    println!("Starting {:?}...", &cli.rom);
+    logs::set_log_level(cli.verbosity);
+
+    log(LogLevel::Infos, format!("Starting {:?}...", &cli.rom));
 
     let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
 
@@ -118,10 +122,6 @@ fn main() {
         fs_load_save,
         cli.speed as f64,
     );
-
-    if cli.debug {
-        gameboy.debug();
-    }
 
     if cli.load_state {
         gameboy.load_state().unwrap();
