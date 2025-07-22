@@ -293,7 +293,7 @@ impl io::Wave for NoiseWave {
 }
 
 #[derive(Clone, Debug)]
-struct MutableWave {
+pub struct MutableWave {
     wave_ch1: Arc<Mutex<Option<Wave>>>,
     wave_ch2: Arc<Mutex<Option<Wave>>>,
     wave_ch3: Arc<Mutex<Option<Wave>>>,
@@ -583,7 +583,7 @@ impl AudioNoiseChannel {
 }
 
 pub struct Channels<A: Audio> {
-    _audio: A,
+    audio: A,
 
     pub ch1: AudioSquareChannel,
     pub ch2: AudioSquareChannel,
@@ -606,11 +606,15 @@ impl<A: Audio> Channels<A> {
         ));
 
         Self {
-            _audio: audio,
+            audio: audio,
             ch1: AudioSquareChannel::new(wave_ch1),
             ch2: AudioSquareChannel::new(wave_ch2),
             ch3: AudioCustomChannel::new(wave_ch3),
             ch4: AudioNoiseChannel::new(wave_ch4),
         }
+    }
+
+    pub fn next(&mut self) {
+        self.audio.next();
     }
 }

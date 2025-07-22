@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 use std::{thread, time};
 
+use crate::audio::MutableWave;
 use crate::consts;
 use crate::state::GBState;
 
@@ -65,7 +66,8 @@ pub trait Wave {
 }
 
 pub trait Audio {
-    fn new<S: Wave + Send + 'static>(wave: S) -> Self;
+    fn new(wave: MutableWave) -> Self;
+    fn next(&mut self);
 }
 
 pub trait LoadSave
@@ -147,6 +149,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
         let mut total_cycle_counter: u128 = 0;
         let mut nanos_sleep: f64 = 0.0;
         let mut halt_time = 0;
+        let mut audio_counter = 0;
         let mut was_previously_halted = false;
 
         let mut last_ram_bank_enabled = false;
@@ -168,6 +171,12 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
             state.cpu.dbg_cycle_counter += c;
             total_cycle_counter += c as u128;
+            audio_counter += c;
+
+            if audio_counter >= 32 {
+                audio_counter -= 32;
+                state.mem.audio.next();
+            }
 
             state.div_timer(c);
             state.tima_timer(c);
