@@ -9,9 +9,12 @@ pub mod mmio;
 pub mod opcodes;
 pub mod state;
 
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
+
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
-use crate::io::{Input, Serial};
+use crate::io::{Input, Serial, Window};
 use crate::logs::{log, LogLevel};
 use clap::Parser;
 
@@ -61,6 +64,10 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     stop_dump_state: bool,
 
+    /// Do not create a window
+    #[arg(long, default_value_t = false)]
+    headless: bool,
+
     /// Window title
     #[arg(long, default_value = "Gameboy Emulator")]
     title: String,
@@ -89,7 +96,16 @@ fn main() {
 
     log(LogLevel::Infos, format!("Starting {:?}...", &cli.rom));
 
-    let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
+    let (window, keys): (Box<dyn Window>, desktop::window::Keys) = if cli.headless {
+        (
+            Box::new(desktop::window::Headless),
+            Arc::new(Mutex::new(HashSet::new())),
+        )
+    } else {
+        let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
+        let keys = window.keys.clone();
+        (Box::new(window), keys)
+    };
 
     let serial: Box<dyn Serial> =
         match (cli.fifo_input, cli.fifo_output, cli.listen, cli.connect) {
@@ -109,7 +125,7 @@ fn main() {
     let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
         Box::new(GamepadReplay::new(record_file))
     } else if cli.keyboard {
-        Box::new(Keyboard::new(window.keys.clone()))
+        Box::new(Keyboard::new(keys))
     } else {
         Box::new(Gamepad::new())
     };

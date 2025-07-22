@@ -20,6 +20,14 @@ const HEIGHT: u32 = 144;
 
 pub type Keys = Arc<Mutex<HashSet<KeyCode>>>;
 
+pub struct Headless;
+
+impl Window for Headless {
+    fn update(&mut self, _fb: Box<[u32; 160 * 144]>) -> Option<WindowSignal> {
+        None
+    }
+}
+
 pub struct DesktopWindow {
     fb_send: Sender<Box<[u32; 160 * 144]>>,
     signal_recv: Receiver<WindowSignal>,

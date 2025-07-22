@@ -36,6 +36,12 @@ pub trait Window {
     fn update(&mut self, fb: Box<[u32; 160 * 144]>) -> Option<WindowSignal>;
 }
 
+impl<T: Window + ?Sized> Window for Box<T> {
+    fn update(&mut self, fb: Box<[u32; 160 * 144]>) -> Option<WindowSignal> {
+        (**self).update(fb)
+    }
+}
+
 pub trait Serial {
     fn read_data(&self) -> u8;
     fn read_control(&self) -> u8;
