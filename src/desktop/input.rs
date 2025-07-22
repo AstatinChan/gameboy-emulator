@@ -42,6 +42,18 @@ impl Gamepad {
 
 impl Input for Gamepad {
     fn update_events(&mut self, _cycles: u128) -> Option<u128> {
+        if let Some(gamepad_id) = self.gamepad_id {
+            if self.gilrs.connected_gamepad(gamepad_id).is_none() {
+                println!("Gamepad (id = {:?}) disconnected", gamepad_id);
+                self.gamepad_id = None;
+            }
+        } else {
+            if let Some((gamepad_id, _gamepad)) = self.gilrs.gamepads().next() {
+                println!("Found Gamepad id: {:?}", gamepad_id);
+                self.gamepad_id = Some(gamepad_id);
+            }
+        }
+
         while let Some(_) = self.gilrs.next_event() {}
         None
     }
