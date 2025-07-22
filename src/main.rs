@@ -77,7 +77,7 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     no_response: bool,
 
-    /// Verbosity. Coma separated values (possible values: infos/debug/opcode_dump/halt_cycles/errors,none)
+    /// Verbosity. Coma separated values (possible values: infos,debug,opcode_dump,halt_cycles,errors,none)
     #[arg(short, long, default_value = "infos,errors")]
     verbosity: String,
 }
