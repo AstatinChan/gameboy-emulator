@@ -164,11 +164,21 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
         let mut last_ram_bank_enabled = false;
         let mut now = SystemTime::now();
+        let mut last_halt_cycle = now;
+        let mut last_halt_cycle_counter: u128 = 0;
         let mut next_precise_gamepad_update: Option<u128> = None;
 
         while !state.is_stopped {
             if was_previously_halted && !state.mem.halt {
-                log(LogLevel::HaltCycles, format!("Halt cycles {}", halt_time));
+                let n = SystemTime::now();
+                log(
+                    LogLevel::HaltCycles,
+                    format!(
+                        "Halt cycles {} (system average speed: {}Hz)",
+                        halt_time,
+                        last_halt_cycle_counter as f32 / n.duration_since(last_halt_cycle).unwrap().as_secs_f32(),
+                    )
+                );
                 halt_time = 0;
             }
             was_previously_halted = state.mem.halt;
@@ -179,6 +189,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
                 4
             };
 
+            last_halt_cycle_counter += c as u128;
             state.cpu.dbg_cycle_counter += c;
             total_cycle_counter += c as u128;
             audio_counter += c;
@@ -194,7 +205,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             state.check_interrupts();
             state.mem.update_serial(total_cycle_counter);
 
-            nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS as f64 / *speed) as f64;
+            nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS / *speed) as f64;
 
             if nanos_sleep >= 0.0
                 || next_precise_gamepad_update.map_or(false, |c| (c >= total_cycle_counter))
@@ -233,11 +244,12 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
                     }
                 }
 
-                thread::sleep(time::Duration::from_nanos(nanos_sleep as u64 / 10));
+                thread::sleep(time::Duration::from_nanos(1)); //nanos_sleep as u64));
 
+                let new_now = SystemTime::now();
                 nanos_sleep =
-                    nanos_sleep - SystemTime::now().duration_since(now).unwrap().as_nanos() as f64;
-                now = SystemTime::now();
+                    nanos_sleep - new_now.duration_since(now).unwrap().as_nanos() as f64;
+                now = new_now;
 
                 if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
                     if let Err(err) = load_save.save_external_ram(state.mem.external_ram.as_ref()) {

@@ -7,7 +7,8 @@ authors = ["Astatin <astatin@redacted>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rodio = { version = "0.17", default-features = false, features = [] }
+rodio = { version = "0.21", default-features = false, features = ["playback"] }
+cpal = "0.16"
 gilrs = "0.10.2"
 clap = { version = "4.3.21", features = ["derive"] }
 pixels = "0.15"

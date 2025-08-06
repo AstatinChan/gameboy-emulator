@@ -7,6 +7,7 @@ pub enum LogLevel {
     Debug,
     OpcodeDump,
     HaltCycles,
+    AudioLatency,
     Error,
 }
 
@@ -30,6 +31,9 @@ pub fn set_log_level(verbosity: String) {
             }
             "errors" => {
                 set.insert(LogLevel::Error);
+            }
+            "audio_latency" => {
+                set.insert(LogLevel::AudioLatency);
             }
             "none" => {}
             _ => panic!("Unknown log level \"{}\"", level),
