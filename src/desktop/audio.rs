@@ -8,9 +8,9 @@ use crate::logs::{log, LogLevel};
 use std::mem;
 use std::time::{SystemTime, Duration};
 
-const BUFFER_SIZE: usize = 256;
-const RODIO_BUFFER_SIZE: usize = 1024;
-const RODIO_BUFFER_SINK_LATE_EXPECTED: f32 = 0.;
+const BUFFER_SIZE: usize = 16;
+const RODIO_BUFFER_SIZE: usize = 2048;
+const RODIO_BUFFER_SINK_LATE_EXPECTED: f32 = 2.;
 const LATE_SPEEDUP_INTENSITY_INV: f32 = 2048.0;
 const SPEEDUP_SKIP_LIMIT: f32 = 1.008;
 
@@ -107,7 +107,7 @@ impl<I: Iterator<Item = f32>> Source for RodioBuffer<I> {
 
 impl Audio for RodioAudio {
     fn new(wave: MutableWave) -> Self {
-        let stream = OutputStreamBuilder::from_default_device().unwrap().with_sample_rate(SAMPLE_RATE).with_buffer_size(BufferSize::Fixed(RODIO_BUFFER_SIZE as u32)).open_stream().unwrap();
+        let stream = OutputStreamBuilder::from_default_device().unwrap().with_buffer_size(BufferSize::Fixed(RODIO_BUFFER_SIZE as u32)).open_stream().unwrap();
 
         let sink = Sink::connect_new(stream.mixer());
         let wave = RodioWave(wave, 0);

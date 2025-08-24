@@ -4,6 +4,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
+use crate::logs::{log, LogLevel};
 use crate::consts::CPU_CLOCK_SPEED;
 use crate::io::Serial;
 
@@ -166,7 +167,7 @@ impl TcpSerial {
         thread::spawn(move || {
             match TcpListener::bind(("0.0.0.0", port)).unwrap().accept() {
                 Ok((socket, addr)) => {
-                    println!("Connection on {:?}", addr);
+                    log(LogLevel::Infos, format!("Connection on {:?}", addr));
                     Self::handle_stream(socket, tx, rx);
                 }
                 _ => (),
@@ -193,7 +194,7 @@ impl TcpSerial {
         let (output, rx) = mpsc::channel::<u8>();
         thread::spawn(move || {
             if let Ok(socket) = TcpStream::connect(&addr) {
-                println!("Connected to {:?}", addr);
+                log(LogLevel::Infos, format!("Connected to {:?}", addr));
                 Self::handle_stream(socket, tx, rx);
             }
         });
@@ -251,8 +252,8 @@ impl Serial for TcpSerial {
                 self.current_data = x;
                 self.external_clock = true;
                 self.transfer_requested = false;
+                self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 1024);
             }
-            self.next_byte_transfer_cycle = cycles + ((CPU_CLOCK_SPEED as u128) / 16384);
             true
         } else if !self.external_clock && !self.current_transfer && self.transfer_requested {
             if cycles > self.next_byte_transfer_cycle {

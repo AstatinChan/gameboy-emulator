@@ -327,6 +327,14 @@ impl Input for GamepadReplay {
                 self.action_reg = inputs[0];
                 self.direction_reg = inputs[1];
 
+                log(
+                    LogLevel::Debug,
+                    format!(
+                        "input update on cycle {} ! 0x{:02x} 0x{:02x}",
+                        cycles, self.action_reg, self.direction_reg
+                    ),
+                );
+
                 let mut cycles_le: [u8; 16] = [0; 16];
 
                 self.next_cycle_update = match self.record_file.read_exact(&mut cycles_le) {

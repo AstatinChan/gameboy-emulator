@@ -55,7 +55,7 @@ impl<T: Serial + ?Sized> Serial for Box<T> {
         (**self).read_data()
     }
     fn read_control(&self) -> u8 {
-        (**self).read_data()
+        (**self).read_control()
     }
     fn write_data(&mut self, data: u8) {
         (**self).write_data(data);

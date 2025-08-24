@@ -753,7 +753,7 @@ impl<S: Serial, A: Audio> GBState<S, A> {
                 0b011 | 0b100 | 0b101 => unimplemented!(),
                 0b010 => {
                     self.cpu.print_debug();
-                    4
+                    0
                 }
                 0b110 => {
                     self.mem.ime = false;
