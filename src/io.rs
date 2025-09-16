@@ -48,6 +48,7 @@ pub trait Serial {
     fn write_data(&mut self, data: u8);
     fn write_control(&mut self, control: u8);
     fn update_serial(&mut self, cycles: u128) -> bool;
+    fn close_serial(&mut self);
 }
 
 impl<T: Serial + ?Sized> Serial for Box<T> {
@@ -65,6 +66,10 @@ impl<T: Serial + ?Sized> Serial for Box<T> {
     }
     fn update_serial(&mut self, cycles: u128) -> bool {
         (**self).update_serial(cycles)
+    }
+
+    fn close_serial(&mut self) {
+        (**self).close_serial()
     }
 }
 
@@ -164,7 +169,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
 
         let mut last_ram_bank_enabled = false;
         let mut now = SystemTime::now();
-        let mut last_halt_cycle = now;
+        let last_halt_cycle = now;
         let mut last_halt_cycle_counter: u128 = 0;
         let mut next_precise_gamepad_update: Option<u128> = None;
 
@@ -262,5 +267,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
                 last_ram_bank_enabled = state.mem.ram_bank_enabled;
             }
         }
+
+        state.mem.serial.close_serial();
     }
 }

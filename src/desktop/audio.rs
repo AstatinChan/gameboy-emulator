@@ -55,7 +55,7 @@ impl SpeedFinder {
 
 pub struct RodioAudio {
     sink: Sink,
-    stream: OutputStream,
+    _stream: OutputStream,
 
     speed_finder: SpeedFinder,
     wave: RodioWave<MutableWave>,
@@ -118,7 +118,7 @@ impl Audio for RodioAudio {
             wave,
             buffer: Box::new([0.0; BUFFER_SIZE]),
             buffer_i: 0,
-            stream,
+            _stream: stream,
         }
     }
 

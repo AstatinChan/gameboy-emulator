@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::io::{self, Read, Write};
+use std::net::{TcpListener, TcpStream, Shutdown};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
@@ -22,6 +22,7 @@ impl Serial for UnconnectedSerial {
     fn update_serial(&mut self, _cycles: u128) -> bool {
         false
     }
+    fn close_serial(&mut self) {}
 }
 
 pub struct FIFOSerial {
@@ -127,6 +128,8 @@ impl Serial for FIFOSerial {
             false
         }
     }
+
+    fn close_serial(&mut self) {}
 }
 
 pub struct TcpSerial {
@@ -139,39 +142,86 @@ pub struct TcpSerial {
 
     no_response: bool,
 
+    listener_close: Option<Sender<()>>,
     input: Receiver<u8>,
+    input_thread_close: Option<Sender<()>>,
     output: Sender<u8>,
+    output_thread_close: Option<Sender<()>>,
 }
 
 impl TcpSerial {
-    pub fn handle_stream(mut stream: TcpStream, tx: Sender<u8>, rx: Receiver<u8>) {
+    pub fn handle_stream(mut stream: TcpStream, tx: Sender<u8>, tx_close: Receiver<()>, rx: Receiver<u8>, rx_close: Receiver<()>) {
+        stream.set_nonblocking(true).expect("set_nonblocking call failed");
+
         let mut stream_clone = stream.try_clone().unwrap();
         thread::spawn(move || loop {
             let mut byte = [0];
 
-            stream_clone.read(&mut byte).unwrap();
-
-            tx.send(byte[0]).unwrap();
+            loop {
+                match stream_clone.read(&mut byte) {
+                    Ok(_) => {
+                        if tx.send(byte[0]).is_err() {
+                            break;
+                        }
+                    },
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        if tx_close.try_recv().is_ok() {
+                            break;
+                        }
+                        continue;
+                    }
+                    Err(err) => {
+                            log(LogLevel::Infos, format!("Stream {:?} closed with error {:?}", &stream_clone, err));
+                            return
+                    }
+                }
+            }
         });
 
         thread::spawn(move || {
-            for b in rx.iter() {
-                stream.write(&[b]).unwrap();
+            let mut iter = rx.try_iter();
+            loop {
+                if let Some(b) = iter.next() {
+                    if stream.write(&[b]).is_err() {
+                        break;
+                    }
+                } else {
+                    if rx_close.try_recv().is_ok() {
+                        break;
+                    }
+                }
             }
         });
     }
 
-    pub fn new_listener(port: u16, no_response: bool) -> Self {
+    pub fn new_listener(listener: TcpListener, no_response: bool) -> Self {
+        let (send_close_listener, close_listener_recv) = mpsc::channel::<()>();
+        let (send_close_input, close_input_recv) = mpsc::channel::<()>();
+        let (send_close_output, close_output_recv) = mpsc::channel::<()>();
+
         let (tx, input) = mpsc::channel::<u8>();
         let (output, rx) = mpsc::channel::<u8>();
         thread::spawn(move || {
-            match TcpListener::bind(("0.0.0.0", port)).unwrap().accept() {
-                Ok((socket, addr)) => {
-                    log(LogLevel::Infos, format!("Connection on {:?}", addr));
-                    Self::handle_stream(socket, tx, rx);
-                }
-                _ => (),
-            };
+                        listener.set_nonblocking(true).expect("Cannot set non-blocking");
+
+            loop {
+                match listener.accept() {
+                    Ok((socket, addr)) => {
+                        log(LogLevel::Infos, format!("Connection on {:?}", addr));
+                        Self::handle_stream(socket.try_clone().unwrap(), tx, close_input_recv, rx, close_output_recv);
+                        let _ = close_listener_recv.recv();
+                        let _ = socket.shutdown(Shutdown::Both);
+                    }
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        if close_listener_recv.try_recv().is_ok() {
+                            break;
+                        }
+                        continue;
+                    }
+                    _ => (),
+                };
+                break;
+            }
         });
 
         Self {
@@ -186,16 +236,22 @@ impl TcpSerial {
 
             input,
             output,
+
+            listener_close: Some(send_close_listener),
+            input_thread_close: Some(send_close_input),
+            output_thread_close: Some(send_close_output),
         }
     }
 
     pub fn connect(addr: String, no_response: bool) -> Self {
+        let (send_close_input, close_input_recv) = mpsc::channel::<()>();
+        let (send_close_output, close_output_recv) = mpsc::channel::<()>();
         let (tx, input) = mpsc::channel::<u8>();
         let (output, rx) = mpsc::channel::<u8>();
         thread::spawn(move || {
             if let Ok(socket) = TcpStream::connect(&addr) {
                 log(LogLevel::Infos, format!("Connected to {:?}", addr));
-                Self::handle_stream(socket, tx, rx);
+                Self::handle_stream(socket, tx, close_input_recv, rx, close_output_recv);
             }
         });
 
@@ -211,11 +267,27 @@ impl TcpSerial {
 
             input,
             output,
+
+            listener_close: None,
+            input_thread_close: Some(send_close_input),
+            output_thread_close: Some(send_close_output),
         }
     }
 }
 
 impl Serial for TcpSerial {
+    fn close_serial(&mut self) {
+        if let Some(close) = &self.listener_close {
+            let _ = close.send(());
+        }
+        if let Some(close) = &self.input_thread_close {
+            let _ = close.send(()).unwrap();
+        }
+        if let Some(close) = &self.output_thread_close {
+            let _ = close.send(());
+        }
+    }
+
     fn read_data(&self) -> u8 {
         self.current_data
     }
@@ -247,7 +319,7 @@ impl Serial for TcpSerial {
                 self.current_transfer = false;
             } else {
                 if !self.no_response || self.transfer_requested {
-                    self.output.send(self.current_data).unwrap();
+                    let _ = self.output.send(self.current_data);
                 }
                 self.current_data = x;
                 self.external_clock = true;

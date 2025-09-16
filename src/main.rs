@@ -11,6 +11,7 @@ pub mod state;
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+use std::net::{TcpListener};
 
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
@@ -84,6 +85,10 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     no_response: bool,
 
+    /// Auto restart on stop or crash
+    #[arg(long, default_value_t = false)]
+    restart_on_stop: bool,
+
     /// Verbosity. Coma separated values (possible values: infos,debug,opcode_dump,halt_cycles,audio_latency,errors,none)
     #[arg(short, long, default_value = "infos,errors")]
     verbosity: String,
@@ -94,70 +99,82 @@ fn main() {
 
     logs::set_log_level(cli.verbosity);
 
-    log(LogLevel::Infos, format!("Starting {:?}...", &cli.rom));
-
-    let (window, keys): (Box<dyn Window>, desktop::window::Keys) = if cli.headless {
-        (
-            Box::new(desktop::window::Headless),
-            Arc::new(Mutex::new(HashSet::new())),
-        )
+    let listener = if let Some(port) = cli.listen {
+        Some(TcpListener::bind(("0.0.0.0", port)).unwrap())
     } else {
-        let window = desktop::window::DesktopWindow::new(cli.title).unwrap();
-        let keys = window.keys.clone();
-        (Box::new(window), keys)
+        None
     };
 
-    let serial: Box<dyn Serial> =
-        match (cli.fifo_input, cli.fifo_output, cli.listen, cli.connect) {
-            (_, _, Some(port), _) => Box::new(desktop::serial::TcpSerial::new_listener(
-                port,
-                cli.no_response,
-            )),
-            (_, _, _, Some(addr)) => {
-                Box::new(desktop::serial::TcpSerial::connect(addr, cli.no_response))
-            }
-            (Some(fifo_input), Some(fifo_output), _, _) => Box::new(
-                desktop::serial::FIFOSerial::new(fifo_input, fifo_output, cli.no_response),
-            ),
-            _ => Box::new(desktop::serial::UnconnectedSerial {}),
+    loop {
+        log(LogLevel::Infos, format!("Starting {:?}...", &cli.rom));
+
+        let (window, keys): (Box<dyn Window>, desktop::window::Keys) = if cli.headless {
+            (
+                Box::new(desktop::window::Headless),
+                Arc::new(Mutex::new(HashSet::new())),
+            )
+        } else {
+            let window = desktop::window::DesktopWindow::new(cli.title.clone()).unwrap();
+            let keys = window.keys.clone();
+            (Box::new(window), keys)
         };
 
-    let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input {
-        Box::new(GamepadReplay::new(record_file))
-    } else if cli.keyboard {
-        Box::new(Keyboard::new(keys))
-    } else {
-        Box::new(Gamepad::new())
-    };
+        let serial: Box<dyn Serial> =
+            match (cli.fifo_input.clone(), cli.fifo_output.clone(), &listener, cli.connect.clone()) {
+                (_, _, Some(listener), _) => Box::new(desktop::serial::TcpSerial::new_listener(
+                    listener.try_clone().unwrap(),
+                    cli.no_response,
+                )),
+                (_, _, _, Some(addr)) => {
+                    Box::new(desktop::serial::TcpSerial::connect(addr, cli.no_response))
+                }
+                (Some(fifo_input), Some(fifo_output), _, _) => Box::new(
+                    desktop::serial::FIFOSerial::new(fifo_input, fifo_output, cli.no_response),
+                ),
+                _ => Box::new(desktop::serial::UnconnectedSerial {}),
+            };
 
-    if let Some(record_file) = cli.record_input {
-        gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
-    };
+        let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input.clone() {
+            Box::new(GamepadReplay::new(record_file))
+        } else if cli.keyboard {
+            Box::new(Keyboard::new(keys))
+        } else {
+            Box::new(Gamepad::new())
+        };
 
-    let mut fs_load_save = FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom));
-    if let Some(state_file) = &cli.state_file {
-        fs_load_save = fs_load_save.state_file(state_file);
-    }
+        if let Some(record_file) = cli.record_input.clone() {
+            gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
+        };
 
-    let mut gameboy = io::Gameboy::<_, _, _, desktop::audio::RodioAudio, _>::new(
-        gamepad,
-        window,
-        serial,
-        fs_load_save,
-        cli.speed as f64,
-    );
+        let mut fs_load_save = FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom));
+        if let Some(state_file) = &cli.state_file {
+            fs_load_save = fs_load_save.state_file(state_file);
+        }
 
-    if cli.load_state {
-        gameboy.load_state().unwrap();
-    }
+        let mut gameboy = io::Gameboy::<_, _, _, desktop::audio::RodioAudio, _>::new(
+            gamepad,
+            window,
+            serial,
+            fs_load_save,
+            cli.speed as f64,
+        );
 
-    if cli.skip_bootrom {
-        gameboy.skip_bootrom();
-    }
+        if cli.load_state {
+            gameboy.load_state().unwrap();
+        }
 
-    gameboy.start();
+        if cli.skip_bootrom {
+            gameboy.skip_bootrom();
+        }
 
-    if cli.stop_dump_state {
-        gameboy.dump_state().unwrap();
+        gameboy.start();
+
+        if cli.stop_dump_state {
+            gameboy.dump_state().unwrap();
+        }
+        
+        if !cli.restart_on_stop {
+            break;
+        }
     }
 }
