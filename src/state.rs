@@ -171,7 +171,7 @@ pub struct Memory<S: Serial, A: Audio> {
 }
 
 impl<S: Serial, A: Audio> Memory<S, A> {
-    pub fn new(serial: S) -> Self {
+    pub fn new(serial: S, audio: A) -> Self {
         let mut display = Display::new();
 
         display.cls();
@@ -194,7 +194,7 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             display,
             io: Box::new([0; 0x80]),
             hram: Box::new([0; 0x7f]),
-            audio: Channels::new(),
+            audio: Channels::new(audio),
             ime: false,
             interrupts_register: 0,
             joypad_is_action: false,
@@ -299,8 +299,8 @@ pub struct GBState<S: Serial, A: Audio> {
 }
 
 impl<S: Serial, A: Audio> GBState<S, A> {
-    pub fn new(serial: S) -> Self {
-        let mem = Memory::new(serial);
+    pub fn new(serial: S, audio: A) -> Self {
+        let mem = Memory::new(serial, audio);
 
         Self {
             cpu: CPU::new(),

@@ -53,12 +53,19 @@ impl SpeedFinder {
     }
 }
 
+pub struct HeadlessAudio {}
+
+impl Audio for HeadlessAudio {
+    fn attach_wave(&mut self, _wave: MutableWave){}
+    fn next(&mut self) {}
+}
+
 pub struct RodioAudio {
     sink: Sink,
     _stream: OutputStream,
 
     speed_finder: SpeedFinder,
-    wave: RodioWave<MutableWave>,
+    wave: Option<RodioWave<MutableWave>>,
     buffer: Box<[f32; BUFFER_SIZE]>,
     buffer_i: usize,
 }
@@ -105,53 +112,62 @@ impl<I: Iterator<Item = f32>> Source for RodioBuffer<I> {
     }
 }
 
-impl Audio for RodioAudio {
-    fn new(wave: MutableWave) -> Self {
+impl RodioAudio {
+    pub fn new() -> Self {
         let stream = OutputStreamBuilder::from_default_device().unwrap().with_buffer_size(BufferSize::Fixed(RODIO_BUFFER_SIZE as u32)).open_stream().unwrap();
 
         let sink = Sink::connect_new(stream.mixer());
-        let wave = RodioWave(wave, 0);
 
         RodioAudio {
             speed_finder: SpeedFinder::new(),
             sink: sink,
-            wave,
+            wave: None,
             buffer: Box::new([0.0; BUFFER_SIZE]),
             buffer_i: 0,
             _stream: stream,
         }
     }
+}
+
+impl Audio for RodioAudio {
+    fn attach_wave(&mut self, wave: MutableWave){
+        let wave = RodioWave(wave, 0);
+
+        self.wave = Some(wave);
+    }
 
     fn next(&mut self) {
-        if let Some(v) = self.wave.next() {
-            self.buffer[self.buffer_i] = v;
-            self.buffer_i += 1;
+        if let Some(wave) = &mut self.wave {
+            if let Some(v) = wave.next() {
+                self.buffer[self.buffer_i] = v;
+                self.buffer_i += 1;
 
-            if self.buffer_i == BUFFER_SIZE {
-                self.buffer_i = 0;
-                let mut buffer = Box::new([0.0; BUFFER_SIZE]);
-                mem::swap(&mut self.buffer, &mut buffer);
-                if let Some(speed) = self.speed_finder.tick() {
-                    let mut late_speedup: f32;
-                    let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
-                    late_speedup = ((rodio_buffers_sink_late - RODIO_BUFFER_SINK_LATE_EXPECTED).powi(3) / LATE_SPEEDUP_INTENSITY_INV) + 1.;
+                if self.buffer_i == BUFFER_SIZE {
+                    self.buffer_i = 0;
+                    let mut buffer = Box::new([0.0; BUFFER_SIZE]);
+                    mem::swap(&mut self.buffer, &mut buffer);
+                    if let Some(speed) = self.speed_finder.tick() {
+                        let mut late_speedup: f32;
+                        let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
+                        late_speedup = ((rodio_buffers_sink_late - RODIO_BUFFER_SINK_LATE_EXPECTED).powi(3) / LATE_SPEEDUP_INTENSITY_INV) + 1.;
 
-                    if late_speedup > SPEEDUP_SKIP_LIMIT {
-                        while late_speedup > 1.0 {
-                            let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
-                            late_speedup = ((rodio_buffers_sink_late - RODIO_BUFFER_SINK_LATE_EXPECTED).powi(3) / LATE_SPEEDUP_INTENSITY_INV) + 1.;
+                        if late_speedup > SPEEDUP_SKIP_LIMIT {
+                            while late_speedup > 1.0 {
+                                let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
+                                late_speedup = ((rodio_buffers_sink_late - RODIO_BUFFER_SINK_LATE_EXPECTED).powi(3) / LATE_SPEEDUP_INTENSITY_INV) + 1.;
 
-                            self.sink.skip_one();
+                                self.sink.skip_one();
+                            }
+                            late_speedup = 1.;
                         }
-                        late_speedup = 1.;
-                    }
-                    let average_speed = (1./speed) / (2 * SAMPLE_RATE / BUFFER_SIZE as u32) as f32;
-                    let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
-                    log(LogLevel::AudioLatency, format!("audio sink latency: {}ms", (1000. * rodio_buffers_sink_late / ((2*SAMPLE_RATE) as f32 / RODIO_BUFFER_SIZE as f32))));
+                        let average_speed = (1./speed) / (2 * SAMPLE_RATE / BUFFER_SIZE as u32) as f32;
+                        let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
+                        log(LogLevel::AudioLatency, format!("audio sink latency: {}ms", (1000. * rodio_buffers_sink_late / ((2*SAMPLE_RATE) as f32 / RODIO_BUFFER_SIZE as f32))));
 
-                    self.sink.set_speed(late_speedup * average_speed);
+                        self.sink.set_speed(late_speedup * average_speed);
+                    }
+                    self.sink.append(RodioBuffer(buffer.into_iter()));
                 }
-                self.sink.append(RodioBuffer(buffer.into_iter()));
             }
         }
     }

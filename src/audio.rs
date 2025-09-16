@@ -592,13 +592,13 @@ pub struct Channels<A: Audio> {
 }
 
 impl<A: Audio> Channels<A> {
-    pub fn new() -> Self {
+    pub fn new(mut audio: A) -> Self {
         let wave_ch1 = Arc::new(Mutex::new(None));
         let wave_ch2 = Arc::new(Mutex::new(None));
         let wave_ch3 = Arc::new(Mutex::new(None));
         let wave_ch4 = Arc::new(Mutex::new(None));
 
-        let audio = A::new(MutableWave::new(
+        audio.attach_wave(MutableWave::new(
             wave_ch1.clone(),
             wave_ch2.clone(),
             wave_ch3.clone(),

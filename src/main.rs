@@ -15,7 +15,8 @@ use std::net::{TcpListener};
 
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
-use crate::io::{Input, Serial, Window};
+use crate::desktop::audio::{RodioAudio, HeadlessAudio};
+use crate::io::{Input, Serial, Window, Audio};
 use crate::logs::{log, LogLevel};
 use clap::Parser;
 
@@ -119,6 +120,12 @@ fn main() {
             (Box::new(window), keys)
         };
 
+        let audio: Box<dyn Audio> = if cli.headless {
+            Box::new(HeadlessAudio{})
+        } else {
+            Box::new(RodioAudio::new())
+        };
+
         let serial: Box<dyn Serial> =
             match (cli.fifo_input.clone(), cli.fifo_output.clone(), &listener, cli.connect.clone()) {
                 (_, _, Some(listener), _) => Box::new(desktop::serial::TcpSerial::new_listener(
@@ -151,10 +158,11 @@ fn main() {
             fs_load_save = fs_load_save.state_file(state_file);
         }
 
-        let mut gameboy = io::Gameboy::<_, _, _, desktop::audio::RodioAudio, _>::new(
+        let mut gameboy = io::Gameboy::<_, _, _, _, _>::new(
             gamepad,
             window,
             serial,
+            audio,
             fs_load_save,
             cli.speed as f64,
         );

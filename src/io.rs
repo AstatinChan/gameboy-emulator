@@ -78,8 +78,18 @@ pub trait Wave {
 }
 
 pub trait Audio {
-    fn new(wave: MutableWave) -> Self;
+    fn attach_wave(&mut self, wave: MutableWave);
     fn next(&mut self);
+}
+
+impl<T: Audio + ?Sized> Audio for Box<T> {
+    fn attach_wave(&mut self, wave: MutableWave) {
+        (**self).attach_wave(wave)
+    }
+
+    fn next(&mut self) {
+        (**self).next()
+    }
 }
 
 pub trait LoadSave
@@ -107,12 +117,12 @@ pub struct Gameboy<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> {
 }
 
 impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A, LS> {
-    pub fn new(input: I, window: W, serial: S, load_save: LS, speed: f64) -> Self {
+    pub fn new(input: I, window: W, serial: S, audio: A, load_save: LS, speed: f64) -> Self {
         let mut gb = Self {
             input,
             window,
             speed,
-            state: GBState::<S, A>::new(serial),
+            state: GBState::<S, A>::new(serial, audio),
             load_save,
         };
 
