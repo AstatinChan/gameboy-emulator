@@ -1,6 +1,6 @@
 # Astatin Emulator
 
-Hii !! This is the emulator I use to make [BunnyLand (Temporary name)](https://github.com/AstatinChan/BunnyLand-Gameboy) on [stream on Twitch](https://www.twitch.tv/astatinchan)
+Hii !! This is the emulator I use to make [BunnyLand (Temporary name)](https://git.astatin.live/bunny-game.git/about/) on [stream on Twitch](https://www.twitch.tv/astatinchan)
 
 # Building the emulator
 
@@ -12,9 +12,9 @@ To assemble it yourself:
 ```bash
 # Downloading directly the executable of the assembler (For linux x86_64)
 # Alternatively you can follow the instructions here:
-#   https://github.com/AstatinChan/gameboy-asm/blob/latest/README.md
+#   https://git.astatin.live/gameboy-asm.git/about/
 # to compile it yourself
-wget https://github.com/AstatinChan/gameboy-asm/releases/download/latest/gbasm_linux-x86_64
+wget https://pellets.astatin.live/pkgs/gameboy-asm/latest/gbasm_linux-x86_64
 chmod +x gbasm_linux-x86-64
 
 # Assembling the bootrom
