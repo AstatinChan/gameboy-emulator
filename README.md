@@ -15,7 +15,7 @@ To assemble it yourself:
 #   https://git.astatin.live/gameboy-asm.git/about/
 # to compile it yourself
 wget https://pellets.astatin.live/pkgs/gameboy-asm/latest/gbasm_linux-x86_64
-chmod +x gbasm_linux-x86-64
+chmod +x gbasm_linux-x86_64
 
 # Assembling the bootrom
 ./gbasm_linux-x86_64 assets/Astatin-bootrom.gbasm assets/dmg_boot.bin
@@ -39,9 +39,7 @@ emulator <gameboy_rom>
 
 If you do not set the `-k` cli parameter, the emulator will try to find a gamepad.
 
-There is no automatic gamepad reconnection. The gamepad must be detected at the start of the emulator and not be disconnected.
-
-If there is the message `No gamepad found` in the first messages, it means your gamepad hasn't been detected or initialized properly. Connect a gamepad and restart the emulator to fix it. It should print `Found Gamepad id: GamepadId(0)` instead.
+If there is the message `No gamepad found` in the first messages, it means your gamepad hasn't been detected or initialized properly. Connect a gamepad to fix it. It should print `Found Gamepad id: GamepadId(0)` instead.
 
 (I don't know which gamepad exactly. The 8BitDo SF30 Pro in USB mode on Arch Linux works. That's all I know lol)
 
