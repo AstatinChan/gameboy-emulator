@@ -1,6 +1,6 @@
 # Astatin Emulator
 
-Hii !! This is the emulator I use to make [BunnyLand (Temporary name)](https://git.astatin.live/bunny-game.git/about/) on [stream on Twitch](https://www.twitch.tv/astatinchan)
+Hii !! This is the emulator I use to make [BunnyLand (Temporary name)](https://git.astatin.live/bunny-game.git/about/) on [stream on Twitch](https://links.astatin.live/twitch)
 
 # Building the emulator
 
@@ -81,4 +81,4 @@ The files must be created before and the input fifo file of one must be the outp
 
 This emulator is not the fastest one, the most accurate one or the most well made. I'm not even sure in which environment it works (I never tested it on windows). I just made it because it's fun and it's a good way to learn how the gameboy works in detail.
 
-For this reason, I'm not entirely sure what I would do if someone were to open a PR without any previous discussion. If you find a bug or want to change something, I would be more confortable if you talked about it with me on stream or [on discord](https://discord.com/invite/XVTCuYJh) before.
+If you find a bug or want to change something, I would be more confortable if you talked about it with me [on stream](https://links.astatin.live/twitch) or [on discord](https://links.astatin.live/discord) instead of sending a patch/opening a pull request directly.
