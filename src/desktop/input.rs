@@ -357,13 +357,6 @@ impl Input for GamepadReplay {
     }
 
     fn save_state(&mut self) -> bool {
-        if self.last_save_state {
-            return false;
-        }
-        if self.next_cycle_update == None {
-            self.last_save_state = true;
-            return true;
-        }
         false
     }
 }

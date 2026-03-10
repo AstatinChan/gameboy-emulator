@@ -40,7 +40,7 @@ const SQUARE_WAVE_PATTERNS: [[u8; 32]; 4] = [
 pub struct Wave {
     period_value: u16,
     pub num_sample: usize,
-    wave_pattern: [u8; 32],
+    wave_pattern: Box<[u8; 32]>,
     length_timer: u8,
     length_timer_enabled: bool,
 
@@ -60,7 +60,7 @@ impl Wave {
     pub fn new(
         num_sample: usize,
         period_value: u16,
-        wave_pattern: [u8; 32],
+        wave_pattern: Box<[u8; 32]>,
         env_initial_volume: u8,
         env_direction: u8,
         env_sweep_pace: u8,
@@ -419,7 +419,7 @@ impl AudioSquareChannel {
                 *wave = Some(Wave::new(
                     if reset { 0 } else { num_sample },
                     2048 - self.period_value,
-                    SQUARE_WAVE_PATTERNS[self.duty as usize],
+                    Box::new(SQUARE_WAVE_PATTERNS[self.duty as usize]),
                     self.initial_volume,
                     self.env_direction,
                     self.sweep,
@@ -447,7 +447,7 @@ pub struct AudioCustomChannel {
 
     pub length_timer: u8,
     pub length_timer_enabled: bool,
-    pub wave_pattern: [u8; 32],
+    pub wave_pattern: Box<[u8; 32]>,
     pub on: bool,
     pub period_value: u16,
     pub initial_volume: u8,
@@ -461,7 +461,7 @@ pub struct AudioCustomChannel {
 impl AudioCustomChannel {
     pub fn new(wave: Arc<Mutex<Option<Wave>>>) -> Self {
         Self {
-            wave_pattern: [0; 32],
+            wave_pattern: Box::new([0; 32]),
             on: true,
             period_value: 0,
             initial_volume: 0,
@@ -487,7 +487,7 @@ impl AudioCustomChannel {
                 *wave = Some(Wave::new(
                     if reset { 0 } else { num_sample },
                     2 * (2048 - (self.period_value * 2)),
-                    self.wave_pattern,
+                    self.wave_pattern.clone(),
                     self.initial_volume,
                     0,
                     0,

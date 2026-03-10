@@ -63,12 +63,17 @@ pub struct Display {
 impl Display {
     pub fn new() -> Self {
         Self {
-            framebuffer: Box::new([0; 160 * 144]),
-            bg_buffer: Box::new([0; 160 * 144]),
-            tiledata: Box::new([0; 0x3000]),
-            bg_map_attr: Box::new([0; 0x400]),
+            // Frame buffer are 100% fine if the zeroing is not correct
+            // so not really unsafe
+            framebuffer: unsafe { Box::<[u32; 160 * 144]>::new_zeroed().assume_init() },
+            bg_buffer: unsafe { Box::<[u8; 160 * 144]>::new_zeroed().assume_init() },
+
+            // I think it's okay to have it not guaranteed zeroing bc the
+            // gameboy also doesn't fully guarantee zero (I think ?)
+            tiledata: unsafe { Box::<[u8; 0x3000]>::new_zeroed().assume_init() },
+            bg_map_attr: unsafe { Box::<[u8; 0x400]>::new_zeroed().assume_init() },
+            tilemaps: unsafe { Box::<[u8; 0x800]>::new_zeroed().assume_init() },
             cram: Box::new([0; 0x80]),
-            tilemaps: Box::new([0; 0x800]),
             oam: Box::new([0; 0xa0]),
             bg_palette: 0,
             vram_bank: 0,

@@ -187,10 +187,12 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             rom_bank: 1,
             ram_bank: 0,
             ram_bank_enabled: false,
-            rom: Box::new([0; 0x200000]),
-            wram_00: Box::new([0; 0x1000]),
-            wram_01: Box::new([0; 0x1000]),
-            external_ram: Box::new([0; 0x8000]),
+            // unsafe but the memory is supposed to work even if uninitialised
+            // part is not full of 0s so whatever I guess
+            rom: unsafe { Box::<[u8; 0x200000]>::new_zeroed().assume_init() },
+            wram_00: unsafe { Box::<[u8; 0x1000]>::new_zeroed().assume_init() },
+            wram_01: unsafe { Box::<[u8; 0x1000]>::new_zeroed().assume_init() },
+            external_ram: unsafe { Box::<[u8; 0x8000]>::new_zeroed().assume_init() },
             display,
             io: Box::new([0; 0x80]),
             hram: Box::new([0; 0x7f]),

@@ -11,7 +11,13 @@ use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::EventLoopBuilder;
 use winit::keyboard::{KeyCode, PhysicalKey};
+
+#[cfg(all(unix))]
 use winit::platform::wayland::EventLoopBuilderExtWayland;
+
+#[cfg(target_os = "windows")]
+use winit::platform::windows::EventLoopBuilderExtWindows;
+
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
