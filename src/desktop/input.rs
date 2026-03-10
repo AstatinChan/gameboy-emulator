@@ -289,7 +289,6 @@ pub struct GamepadReplay {
     action_reg: u8,
     direction_reg: u8,
     next_cycle_update: Option<u128>,
-    last_save_state: bool,
 }
 
 impl GamepadReplay {
@@ -309,7 +308,6 @@ impl GamepadReplay {
             action_reg: 0xff,
             direction_reg: 0xff,
             next_cycle_update,
-            last_save_state: false,
         }
     }
 }

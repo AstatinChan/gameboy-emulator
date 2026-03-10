@@ -223,7 +223,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
             nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS / *speed) as f64;
 
             if nanos_sleep >= 0.0
-                || next_precise_gamepad_update.map_or(false, |c| (c >= total_cycle_counter))
+                || next_precise_gamepad_update.map_or(false, |c| c >= total_cycle_counter)
             {
                 next_precise_gamepad_update = input.update_events(total_cycle_counter);
 

@@ -17,3 +17,7 @@ winit_input_helper = "0.15"
 
 [profile.dev]
 overflow-checks = false
+
+[features]
+default = ["dynamic_rom"]
+dynamic_rom = []

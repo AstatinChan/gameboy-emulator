@@ -24,6 +24,7 @@ use clap::Parser;
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// The gameboy rom file
+    #[cfg(feature = "dynamic_rom")]
     rom: String,
 
     /// Serial communication input from a FIFO file
@@ -71,6 +72,7 @@ struct Cli {
     headless: bool,
 
     /// Window title
+    #[cfg(feature = "dynamic_rom")]
     #[arg(long, default_value = "Gameboy Emulator")]
     title: String,
 
@@ -100,6 +102,20 @@ fn main() {
 
     logs::set_log_level(cli.verbosity);
 
+    #[cfg(feature = "dynamic_rom")]
+    let rom = cli.rom.clone();
+
+    #[cfg(feature = "dynamic_rom")]
+    let title = cli.title.clone();
+
+
+    #[cfg(not(feature = "dynamic_rom"))]
+    let rom = env!("GAME_ROM_ASSET");
+
+    #[cfg(not(feature = "dynamic_rom"))]
+    let title = env!("GAME_TITLE");
+
+
     let listener = if let Some(port) = cli.listen {
         Some(TcpListener::bind(("0.0.0.0", port)).unwrap())
     } else {
@@ -107,7 +123,7 @@ fn main() {
     };
 
     loop {
-        log(LogLevel::Infos, format!("Starting {:?}...", &cli.rom));
+        log(LogLevel::Infos, format!("Starting {:?}...", &rom));
 
         let (window, keys): (Box<dyn Window>, desktop::window::Keys) = if cli.headless {
             (
@@ -115,7 +131,7 @@ fn main() {
                 Arc::new(Mutex::new(HashSet::new())),
             )
         } else {
-            let window = desktop::window::DesktopWindow::new(cli.title.clone()).unwrap();
+            let window = desktop::window::DesktopWindow::new(title.clone()).unwrap();
             let keys = window.keys.clone();
             (Box::new(window), keys)
         };
@@ -153,7 +169,7 @@ fn main() {
             gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
         };
 
-        let mut fs_load_save = FSLoadSave::new(&cli.rom, format!("{}.sav", &cli.rom));
+        let mut fs_load_save = FSLoadSave::new(rom.clone(), format!("{}.sav", &rom));
         if let Some(state_file) = &cli.state_file {
             fs_load_save = fs_load_save.state_file(state_file);
         }

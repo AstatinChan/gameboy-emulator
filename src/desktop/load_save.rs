@@ -30,9 +30,18 @@ impl LoadSave for FSLoadSave {
     type Error = std::io::Error;
 
     fn load_rom(&self, rom: &mut [u8]) -> Result<(), std::io::Error> {
-        let mut f = File::open(&self.rom_file)?;
+        #[cfg(feature = "dynamic_rom")]
+        {
+            let mut f = File::open(&self.rom_file)?;
 
-        f.read(rom)?;
+            f.read(rom)?;
+        }
+
+        #[cfg(not(feature = "dynamic_rom"))]
+        {
+            let bytes = include_bytes!(env!("GAME_ROM_ASSET"));
+            rom[..bytes.len()].copy_from_slice(bytes);
+        }
 
         return Ok(());
     }
