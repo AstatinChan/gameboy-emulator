@@ -14,11 +14,13 @@ use std::sync::{Arc, Mutex};
 use std::net::{TcpListener};
 
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
-use crate::desktop::load_save::FSLoadSave;
+use crate::desktop::load_save::{FSLoadSave, StaticRom};
 use crate::desktop::audio::{RodioAudio, HeadlessAudio};
 use crate::io::{Input, Serial, Window, Audio};
 use crate::logs::{log, LogLevel};
 use clap::Parser;
+#[cfg(not(feature = "dynamic_rom"))]
+use cpal::traits::StreamTrait;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -115,6 +117,8 @@ fn main() {
     #[cfg(not(feature = "dynamic_rom"))]
     let title = env!("GAME_TITLE");
 
+    #[cfg(not(feature = "dynamic_rom"))]
+    let sav = env!("GAME_SAV_FILENAME");
 
     let listener = if let Some(port) = cli.listen {
         Some(TcpListener::bind(("0.0.0.0", port)).unwrap())
@@ -123,7 +127,11 @@ fn main() {
     };
 
     loop {
+        #[cfg(feature = "dynamic_rom")]
         log(LogLevel::Infos, format!("Starting {:?}...", &rom));
+
+        #[cfg(not(feature = "dynamic_rom"))]
+        log(LogLevel::Infos, format!("Starting {:?}...", title));
 
         let (window, keys): (Box<dyn Window>, desktop::window::Keys) = if cli.headless {
             (
@@ -169,7 +177,13 @@ fn main() {
             gamepad = Box::new(GamepadRecorder::new(gamepad, record_file));
         };
 
+        #[cfg(feature = "dynamic_rom")]
         let mut fs_load_save = FSLoadSave::new(rom.clone(), format!("{}.sav", &rom));
+
+        #[cfg(not(feature = "dynamic_rom"))]
+        let mut fs_load_save = StaticRom::new(sav);
+
+        #[cfg(feature = "dynamic_rom")]
         if let Some(state_file) = &cli.state_file {
             fs_load_save = fs_load_save.state_file(state_file);
         }
