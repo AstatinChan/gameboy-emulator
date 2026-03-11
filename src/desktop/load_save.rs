@@ -3,7 +3,6 @@ use crate::logs::{elog, log, LogLevel};
 use crate::state::GBState;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::os::unix::net::UnixStream;
 
 #[derive(Debug)]
 pub struct FSLoadSave {
