@@ -222,6 +222,14 @@ impl StaticRom {
 impl LoadSave for StaticRom {
     type Error = std::io::Error;
 
+    #[cfg(target_family = "wasm")]
+    fn load_rom(&self, rom: &mut [u8]) -> Result<(), std::io::Error> {
+        let bytes = include_bytes!(env!("GAME_ROM_ASSET"));
+        rom[..bytes.len()].copy_from_slice(bytes);
+
+        return Ok(());
+    }
+
     #[cfg(not(feature = "dynamic_rom"))]
     fn load_rom(&self, rom: &mut [u8]) -> Result<(), std::io::Error> {
         let bytes = include_bytes!(env!("GAME_ROM_ASSET"));
@@ -230,6 +238,7 @@ impl LoadSave for StaticRom {
         return Ok(());
     }
 
+    #[cfg(not(target_family = "wasm"))]
     #[cfg(feature = "dynamic_rom")]
     fn load_rom(&self, _rom: &mut [u8]) -> Result<(), std::io::Error> {
         panic!("Cannot load static rom in dynamic rom mode");
@@ -255,6 +264,17 @@ impl LoadSave for StaticRom {
         Ok(())
     }
 
+    #[cfg(target_family = "wasm")]
+    fn load_external_ram(&self, _external_ram: &mut [u8]) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+
+    #[cfg(target_family = "wasm")]
+    fn save_external_ram(&self, external_ram: &[u8]) -> Result<(), std::io::Error> {
+        unimplemented!();
+    }
+
+    #[cfg(not(target_family = "wasm"))]
     fn load_external_ram(&self, external_ram: &mut [u8]) -> Result<(), std::io::Error> {
         let mut f = File::open(&self.save_file)?;
 
@@ -268,6 +288,7 @@ impl LoadSave for StaticRom {
         Ok(())
     }
 
+    #[cfg(not(target_family = "wasm"))]
     fn save_external_ram(&self, external_ram: &[u8]) -> Result<(), std::io::Error> {
         let mut f = File::create(&self.save_file)?;
 

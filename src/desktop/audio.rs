@@ -6,7 +6,12 @@ use crate::audio::{MutableWave, SAMPLE_RATE};
 use crate::io::{Audio, Wave};
 use crate::logs::{log, LogLevel};
 use std::mem;
-use std::time::{SystemTime, Duration};
+
+#[cfg(not(target_family = "wasm"))]
+use std::time::{SystemTime};
+#[cfg(target_family = "wasm")]
+use crate::utils_wasm::{SystemTime};
+use std::time::Duration;
 
 const BUFFER_SIZE: usize = 16;
 const RODIO_BUFFER_SIZE: usize = 2048;
@@ -93,6 +98,7 @@ impl<I: Iterator<Item = f32>> Iterator for RodioBuffer<I> {
         self.0.next()
     }
 }
+
 
 impl<I: Iterator<Item = f32>> Source for RodioBuffer<I> {
     fn current_span_len(&self) -> Option<usize> {

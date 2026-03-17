@@ -1,4 +1,7 @@
-use std::time::SystemTime;
+#[cfg(not(target_family = "wasm"))]
+use std::time::{SystemTime};
+#[cfg(target_family = "wasm")]
+use crate::utils_wasm::{SystemTime};
 use std::{thread, time};
 
 use crate::audio::MutableWave;
@@ -259,7 +262,7 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
                     }
                 }
 
-                thread::sleep(time::Duration::from_nanos(1)); //nanos_sleep as u64));
+                // thread::sleep(time::Duration::from_nanos(1)); //nanos_sleep as u64));
 
                 let new_now = SystemTime::now();
                 nanos_sleep =

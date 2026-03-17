@@ -4,3 +4,4 @@ assets/cgb_boot.bin
 assets/dmg_boot.bin
 assets/dmg_boot.bin.bak
 *.record
+.cargo/

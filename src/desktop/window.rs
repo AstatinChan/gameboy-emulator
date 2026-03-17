@@ -34,12 +34,14 @@ impl Window for Headless {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 pub struct DesktopWindow {
     fb_send: Sender<Box<[u32; 160 * 144]>>,
     signal_recv: Receiver<WindowSignal>,
     pub keys: Keys,
 }
 
+#[cfg(not(target_family = "wasm"))]
 impl DesktopWindow {
     pub fn new(title: impl Into<String>) -> Result<Self, Error> {
         let title: String = title.into();
@@ -148,6 +150,7 @@ impl DesktopWindow {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 impl Window for DesktopWindow {
     fn update(&mut self, fb: Box<[u32; 160 * 144]>) -> Option<WindowSignal> {
         if let Err(err) = self.fb_send.send(fb) {

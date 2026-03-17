@@ -1,6 +1,8 @@
 pub mod audio;
 pub mod consts;
+
 pub mod desktop;
+
 pub mod display;
 pub mod interrupts_timers;
 pub mod io;
@@ -8,19 +10,22 @@ pub mod logs;
 pub mod mmio;
 pub mod opcodes;
 pub mod state;
+#[cfg(not(feature = "dynamic_rom"))]
+use cpal::traits::StreamTrait;
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::net::{TcpListener};
 
 use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard, InputCombiner};
-use crate::desktop::load_save::{FSLoadSave, StaticRom};
+use crate::desktop::load_save::FSLoadSave;
+#[cfg(not(feature = "dynamic_rom"))]
+use crate::desktop::load_save::StaticRom;
 use crate::desktop::audio::{RodioAudio, HeadlessAudio};
-use crate::io::{Input, Serial, Window, Audio};
+
+use crate::io::{Input, Serial, Window, Audio, Gameboy};
 use crate::logs::{log, LogLevel};
 use clap::Parser;
-#[cfg(not(feature = "dynamic_rom"))]
-use cpal::traits::StreamTrait;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -95,7 +100,7 @@ struct Cli {
     verbosity: String,
 }
 
-fn main() {
+pub fn main() {
     let cli = Cli::parse();
 
     logs::set_log_level(cli.verbosity);
@@ -186,7 +191,7 @@ fn main() {
             fs_load_save = fs_load_save.state_file(state_file);
         }
 
-        let mut gameboy = io::Gameboy::<_, _, _, _, _>::new(
+        let mut gameboy = Gameboy::<_, _, _, _, _>::new(
             gamepad,
             window,
             serial,

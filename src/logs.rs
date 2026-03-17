@@ -13,9 +13,9 @@ pub enum LogLevel {
 
 static LOG_LEVEL: OnceLock<HashSet<LogLevel>> = OnceLock::new();
 
-pub fn set_log_level(verbosity: String) {
+pub fn set_log_level(verbosity: impl Into<String>) {
     let mut set: HashSet<LogLevel> = HashSet::new();
-    for level in verbosity.split(",") {
+    for level in verbosity.into().split(",") {
         match level {
             "infos" => {
                 set.insert(LogLevel::Infos);
@@ -44,18 +44,53 @@ pub fn set_log_level(verbosity: String) {
     }
 }
 
-pub fn log(level: LogLevel, s: String) {
+#[cfg(not(target_family = "wasm"))]
+pub fn log(level: LogLevel, s: impl Into<String>) {
     if let Some(set) = LOG_LEVEL.get() {
         if set.contains(&level) {
-            println!("[{:?}] {}", level, s);
+            println!("[{:?}] {}", level, s.into());
         }
     }
 }
 
-pub fn elog(level: LogLevel, s: String) {
+#[cfg(not(target_family = "wasm"))]
+pub fn elog(level: LogLevel, s: impl Into<String>) {
     if let Some(set) = LOG_LEVEL.get() {
         if set.contains(&level) {
-            eprintln!("[{:?}] {}", level, s);
+            eprintln!("[{:?}] {}", level, s.into());
+        }
+    }
+}
+
+#[cfg(target_family = "wasm")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_family = "wasm")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    pub fn console_log(s: &str);
+
+    #[wasm_bindgen(js_namespace = console, js_name = error)]
+    fn console_error(s: &str);
+}
+
+#[cfg(target_family = "wasm")]
+pub fn log(level: LogLevel, s: impl Into<String>) {
+    if let Some(set) = LOG_LEVEL.get() {
+        if set.contains(&level) {
+            console_log(&format!("[{:?}] {}", level, s.into()));
+        }
+    }
+}
+
+
+
+#[cfg(target_family = "wasm")]
+pub fn elog(level: LogLevel, s: impl Into<String>) {
+    if let Some(set) = LOG_LEVEL.get() {
+        if set.contains(&level) {
+            console_error(&format!("[{:?}] {}", level, s.into()));
         }
     }
 }

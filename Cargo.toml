@@ -15,9 +15,20 @@ pixels = "0.15"
 winit = "0.29"
 winit_input_helper = "0.15"
 
+[target.wasm32-unknown-unknown.dependencies]
+console_error_panic_hook = "0.1.7"
+wasm-bindgen = "0.2.84"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
 [profile.dev]
 overflow-checks = false
 
 [features]
 default = ["dynamic_rom"]
 dynamic_rom = []
+
+[target.wasm32-unknown-unknown.features]
+default = []
