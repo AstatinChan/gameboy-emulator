@@ -7,6 +7,64 @@ use crate::logs::{elog, log, LogLevel};
 use gilrs::{Button, GamepadId, Gilrs};
 use winit::keyboard::KeyCode;
 
+pub struct InputCombiner(Vec<Box<dyn Input>>);
+
+impl InputCombiner {
+    pub fn new(inputs: Vec<Box<dyn Input>>) -> Self {
+        Self(inputs)
+    }
+}
+
+impl Input for InputCombiner {
+    fn update_events(&mut self, cycles: u128) -> Option<u128> {
+        let mut next_update: Option<Option<u128>> = None;
+        for input in self.0.iter_mut() {
+            let input_next_update = input.update_events(cycles);
+
+            if input_next_update == None {
+                next_update = Some(None);
+            } else if let Some(new_next_cycles_update) = input_next_update {
+                if next_update == None {
+                    next_update = Some(input_next_update);
+                } else if let Some(Some(next_cycles_update)) = next_update {
+                    if new_next_cycles_update < next_cycles_update {
+                        next_update = Some(Some(new_next_cycles_update));
+                    }
+                }
+            }
+        }
+        if let Some(res) = next_update {
+            res
+        } else {
+            None
+        }
+    }
+
+    fn get_action_gamepad_reg(&self) -> u8 {
+        let mut action_gamepad_reg = 0xff;
+        for input in self.0.iter() {
+            action_gamepad_reg &= input.get_action_gamepad_reg();
+        }
+        action_gamepad_reg
+    }
+
+    fn get_direction_gamepad_reg(&self) -> u8 {
+        let mut direction_gamepad_reg = 0xff;
+        for input in self.0.iter() {
+            direction_gamepad_reg &= input.get_direction_gamepad_reg();
+        }
+        direction_gamepad_reg
+    }
+
+    fn save_state(&mut self) -> bool {
+        let mut save_state = false;
+        for input in self.0.iter_mut() {
+            save_state |= input.save_state();
+        }
+        save_state
+    }
+}
+
 pub struct Gamepad {
     gilrs: Gilrs,
     gamepad_id: Option<GamepadId>,

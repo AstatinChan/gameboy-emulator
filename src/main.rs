@@ -13,7 +13,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::net::{TcpListener};
 
-use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard};
+use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard, InputCombiner};
 use crate::desktop::load_save::{FSLoadSave, StaticRom};
 use crate::desktop::audio::{RodioAudio, HeadlessAudio};
 use crate::io::{Input, Serial, Window, Audio};
@@ -53,10 +53,6 @@ struct Cli {
     /// Start at the state defined by --state-file instead of the start of bootrom with empty mem
     #[arg(short, long, default_value_t = false)]
     load_state: bool,
-
-    /// Gets inputs from keyboard instead of gamepad
-    #[arg(short, long, default_value_t = false)]
-    keyboard: bool,
 
     #[arg(short, long, default_value_t = 1.0)]
     speed: f32,
@@ -167,10 +163,12 @@ fn main() {
 
         let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input.clone() {
             Box::new(GamepadReplay::new(record_file))
-        } else if cli.keyboard {
-            Box::new(Keyboard::new(keys))
         } else {
-            Box::new(Gamepad::new())
+            Box::new(InputCombiner::new(vec![
+                Box::new(Gamepad::new()),
+                Box::new(Keyboard::new(keys)),
+            ]))
+
         };
 
         if let Some(record_file) = cli.record_input.clone() {
