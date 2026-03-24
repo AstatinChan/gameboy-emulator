@@ -8,7 +8,7 @@ authors = ["Astatin <astatin@redacted>"]
 
 [dependencies]
 rodio = { version = "0.21", default-features = false, features = ["playback"] }
-cpal = "0.16"
+cpal = { version = "0.16", features = ["wasm-bindgen"] }
 gilrs = "0.10.2"
 clap = { version = "4.3.21", features = ["derive"] }
 pixels = "0.15"
@@ -18,10 +18,11 @@ winit_input_helper = "0.15"
 [target.wasm32-unknown-unknown.dependencies]
 console_error_panic_hook = "0.1.7"
 wasm-bindgen = "0.2.84"
+web-sys = { version = "0.3", features = ["default", "HtmlElement"] }
+wasm-bindgen-futures = "0.4.64"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-path = "src/lib.rs"
 
 [profile.dev]
 overflow-checks = false

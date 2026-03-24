@@ -20,6 +20,7 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
+use core::time::Duration;
 
 const WIDTH: u32 = 160;
 const HEIGHT: u32 = 144;
@@ -77,6 +78,7 @@ impl DesktopWindow {
             let mut fb = Box::new([0; 160 * 144]);
             event_loop
                 .run(|event, elwt| {
+                    elwt.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_micros(1000000/60)));
                     if let Event::WindowEvent {
                         event: WindowEvent::RedrawRequested,
                         ..
@@ -168,7 +170,7 @@ impl Window for DesktopWindow {
     }
 }
 
-fn draw(frame: &mut [u8], fb: &[u32; 160 * 144]) {
+pub fn draw(frame: &mut [u8], fb: &[u32; 160 * 144]) {
     for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
         pixel.copy_from_slice(&((fb[i] << 8) | 0xff).to_be_bytes())
     }

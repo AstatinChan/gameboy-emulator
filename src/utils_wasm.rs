@@ -41,8 +41,3 @@ impl SystemTime {
         Ok(Duration(self.0 - other.0))
     }
 }
-
-#[cfg(target_family = "wasm")]
-pub fn test() {
-    alert(now());
-}

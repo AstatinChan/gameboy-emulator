@@ -134,7 +134,7 @@ pub fn main() {
         #[cfg(not(feature = "dynamic_rom"))]
         log(LogLevel::Infos, format!("Starting {:?}...", title));
 
-        let (window, keys): (Box<dyn Window>, desktop::window::Keys) = if cli.headless {
+        let (mut window, keys): (Box<dyn Window>, desktop::window::Keys) = if cli.headless {
             (
                 Box::new(desktop::window::Headless),
                 Arc::new(Mutex::new(HashSet::new())),
@@ -191,9 +191,8 @@ pub fn main() {
             fs_load_save = fs_load_save.state_file(state_file);
         }
 
-        let mut gameboy = Gameboy::<_, _, _, _, _>::new(
+        let mut gameboy = Gameboy::<_, _, _, _>::new(
             gamepad,
-            window,
             serial,
             audio,
             fs_load_save,
@@ -208,7 +207,14 @@ pub fn main() {
             gameboy.skip_bootrom();
         }
 
-        gameboy.start();
+
+        while gameboy.run_until_next_sleep() {
+           if let Some(fb) = gameboy.sleep_and_draw() {
+               if let Some(io::WindowSignal::Exit) = window.update(fb) {
+                   break;
+               }
+           }
+        }
 
         if cli.stop_dump_state {
             gameboy.dump_state().unwrap();

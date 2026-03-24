@@ -262,7 +262,7 @@ dependencies = [
  "bitflags 2.9.1",
  "log",
  "polling",
- "rustix",
+ "rustix 0.38.44",
  "slab",
  "thiserror",
 ]
@@ -274,7 +274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f0ea9b9476c7fad82841a8dbb380e2eae480c21910feba80725b46931ed8f02"
 dependencies = [
  "calloop",
- "rustix",
+ "rustix 0.38.44",
  "wayland-backend",
  "wayland-client",
 ]
@@ -545,7 +545,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89a09f22a6c6069a18470eb92d2298acf25463f14256d24778e1230d789a2aec"
 dependencies = [
  "bitflags 2.9.1",
- "objc2 0.6.1",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -574,6 +574,8 @@ dependencies = [
  "pixels",
  "rodio",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "winit",
  "winit_input_helper",
 ]
@@ -626,6 +628,30 @@ name = "foreign-types-shared"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
+
+[[package]]
+name = "futures-core"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
+
+[[package]]
+name = "futures-task"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "037711b3d59c33004d3856fbdc83b99d4ff37a24768fa1be9ce3538a1cde4393"
+
+[[package]]
+name = "futures-util"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "pin-project-lite",
+ "slab",
+]
 
 [[package]]
 name = "gethostname"
@@ -852,7 +878,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb0889898416213fab133e1d33a0e5858a48177452750691bde3666d0fdbaf8b"
 dependencies = [
  "hermit-abi 0.3.2",
- "rustix",
+ "rustix 0.38.44",
  "windows-sys 0.48.0",
 ]
 
@@ -889,9 +915,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.77"
+version = "0.3.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
+checksum = "b49715b7073f385ba4bc528e5747d02e66cb39c6146efb66b781f131f0fb399c"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
@@ -916,9 +942,9 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "libc"
-version = "0.2.171"
+version = "0.2.183"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
+checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "libloading"
@@ -966,6 +992,12 @@ name = "linux-raw-sys"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
+
+[[package]]
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "lock_api"
@@ -1215,9 +1247,9 @@ dependencies = [
 
 [[package]]
 name = "objc2"
-version = "0.6.1"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88c6597e14493ab2e44ce58f2fdecf095a51f12ca57bec060a11c57332520551"
+checksum = "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f"
 dependencies = [
  "objc2-encode 4.1.0",
 ]
@@ -1230,7 +1262,7 @@ checksum = "10cbe18d879e20a4aea544f8befe38bcf52255eb63d3f23eca2842f3319e4c07"
 dependencies = [
  "bitflags 2.9.1",
  "libc",
- "objc2 0.6.1",
+ "objc2 0.6.4",
  "objc2-core-audio",
  "objc2-core-audio-types",
  "objc2-core-foundation",
@@ -1244,7 +1276,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca44961e888e19313b808f23497073e3f6b3c22bb485056674c8b49f3b025c82"
 dependencies = [
  "dispatch2",
- "objc2 0.6.1",
+ "objc2 0.6.4",
  "objc2-core-audio-types",
  "objc2-core-foundation",
 ]
@@ -1256,7 +1288,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0f1cc99bb07ad2ddb6527ddf83db6a15271bb036b3eb94b801cd44fdc666ee1"
 dependencies = [
  "bitflags 2.9.1",
- "objc2 0.6.1",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -1267,7 +1299,7 @@ checksum = "1c10c2894a6fed806ade6027bcd50662746363a9589d3ec9d9bef30a4e4bc166"
 dependencies = [
  "bitflags 2.9.1",
  "dispatch2",
- "objc2 0.6.1",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -1288,7 +1320,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "900831247d2fe1a09a683278e5384cfb8c80c79fe6b166f9d14bfdde0ea1b03c"
 dependencies = [
- "objc2 0.6.1",
+ "objc2 0.6.4",
 ]
 
 [[package]]
@@ -1395,7 +1427,7 @@ dependencies = [
  "concurrent-queue",
  "hermit-abi 0.4.0",
  "pin-project-lite",
- "rustix",
+ "rustix 0.38.44",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -1439,9 +1471,9 @@ checksum = "afbdc74edc00b6f6a218ca6a5364d6226a259d4b8ea1af4a0ea063f27e179f4d"
 
 [[package]]
 name = "quick-xml"
-version = "0.37.2"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "165859e9e55f79d67b96c5d96f4e88b6f2695a1972849c15a6a3f5c59fc2c003"
+checksum = "958f21e8e7ceb5a1aa7fa87fab28e7c75976e0bfe7e23ff069e0a260f894067d"
 dependencies = [
  "memchr",
 ]
@@ -1517,7 +1549,20 @@ dependencies = [
  "bitflags 2.9.1",
  "errno",
  "libc",
- "linux-raw-sys",
+ "linux-raw-sys 0.4.15",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "rustix"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
+dependencies = [
+ "bitflags 2.9.1",
+ "errno",
+ "libc",
+ "linux-raw-sys 0.12.1",
  "windows-sys 0.59.0",
 ]
 
@@ -1627,7 +1672,7 @@ dependencies = [
  "libc",
  "log",
  "memmap2",
- "rustix",
+ "rustix 0.38.44",
  "thiserror",
  "wayland-backend",
  "wayland-client",
@@ -1865,37 +1910,25 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.100"
+version = "0.2.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1edc8929d7499fc4e8f0be2262a241556cfc54a0bea223790e71446f2aab1ef5"
+checksum = "6532f9a5c1ece3798cb1c2cfdba640b9b3ba884f5db45973a6f442510a87d38e"
 dependencies = [
  "cfg-if",
  "once_cell",
  "rustversion",
  "wasm-bindgen-macro",
-]
-
-[[package]]
-name = "wasm-bindgen-backend"
-version = "0.2.100"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f0a0651a5c2bc21487bde11ee802ccaf4c51935d0d3d42a6101f98161700bc6"
-dependencies = [
- "bumpalo",
- "log",
- "proc-macro2",
- "quote",
- "syn 2.0.100",
  "wasm-bindgen-shared",
 ]
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.50"
+version = "0.4.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "555d470ec0bc3bb57890405e5d4322cc9ea83cebb085523ced7be4144dac1e61"
+checksum = "e9c5522b3a28661442748e09d40924dfb9ca614b21c00d3fd135720e48b67db8"
 dependencies = [
  "cfg-if",
+ "futures-util",
  "js-sys",
  "once_cell",
  "wasm-bindgen",
@@ -1904,9 +1937,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.100"
+version = "0.2.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fe63fc6d09ed3792bd0897b314f53de8e16568c2b3f7982f468c0bf9bd0b407"
+checksum = "18a2d50fcf105fb33bb15f00e7a77b772945a2ee45dcf454961fd843e74c18e6"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -1914,35 +1947,35 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.100"
+version = "0.2.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ae87ea40c9f689fc23f209965b6fb8a99ad69aeeb0231408be24920604395de"
+checksum = "03ce4caeaac547cdf713d280eda22a730824dd11e6b8c3ca9e42247b25c631e3"
 dependencies = [
+ "bumpalo",
  "proc-macro2",
  "quote",
  "syn 2.0.100",
- "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.100"
+version = "0.2.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a05d73b933a847d6cccdda8f838a22ff101ad9bf93e33684f39c1f5f0eece3d"
+checksum = "75a326b8c223ee17883a4251907455a2431acc2791c98c26279376490c378c16"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
 name = "wayland-backend"
-version = "0.3.8"
+version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7208998eaa3870dad37ec8836979581506e0c5c64c20c9e79e9d2a10d6f47bf"
+checksum = "fee64194ccd96bf648f42a65a7e589547096dfa702f7cadef84347b66ad164f9"
 dependencies = [
  "cc",
  "downcast-rs",
- "rustix",
+ "rustix 1.1.4",
  "scoped-tls",
  "smallvec",
  "wayland-sys",
@@ -1950,12 +1983,12 @@ dependencies = [
 
 [[package]]
 name = "wayland-client"
-version = "0.31.8"
+version = "0.31.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2120de3d33638aaef5b9f4472bff75f07c56379cf76ea320bd3a3d65ecaf73f"
+checksum = "b8e6faa537fbb6c186cb9f1d41f2f811a4120d1b57ec61f50da451a0c5122bec"
 dependencies = [
  "bitflags 2.9.1",
- "rustix",
+ "rustix 1.1.4",
  "wayland-backend",
  "wayland-scanner",
 ]
@@ -1977,7 +2010,7 @@ version = "0.31.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a93029cbb6650748881a00e4922b076092a6a08c11e7fbdb923f064b23968c5d"
 dependencies = [
- "rustix",
+ "rustix 0.38.44",
  "wayland-client",
  "xcursor",
 ]
@@ -2022,9 +2055,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-scanner"
-version = "0.31.6"
+version = "0.31.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "896fdafd5d28145fce7958917d69f2fd44469b1d4e861cb5961bcbeebc6d1484"
+checksum = "c86287151a309799b821ca709b7345a048a2956af05957c89cb824ab919fa4e3"
 dependencies = [
  "proc-macro2",
  "quick-xml",
@@ -2033,9 +2066,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-sys"
-version = "0.31.6"
+version = "0.31.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbcebb399c77d5aa9fa5db874806ee7b4eba4e73650948e8f93963f128896615"
+checksum = "1e6dbfc3ac5ef974c92a2235805cc0114033018ae1290a72e474aa8b28cbbdfd"
 dependencies = [
  "dlib",
  "log",
@@ -2045,9 +2078,9 @@ dependencies = [
 
 [[package]]
 name = "web-sys"
-version = "0.3.77"
+version = "0.3.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33b6dd2ef9186f1f2072e409e99cd22a975331a6b3591b12c764e0e55c60d5d2"
+checksum = "854ba17bb104abfb26ba36da9729addc7ce7f06f5c0f90f3c391f8461cca21f9"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -2518,7 +2551,7 @@ dependencies = [
  "percent-encoding",
  "raw-window-handle",
  "redox_syscall 0.3.5",
- "rustix",
+ "rustix 0.38.44",
  "sctk-adwaita",
  "smithay-client-toolkit",
  "smol_str",
@@ -2578,7 +2611,7 @@ dependencies = [
  "libc",
  "libloading 0.8.6",
  "once_cell",
- "rustix",
+ "rustix 0.38.44",
  "x11rb-protocol",
 ]
 

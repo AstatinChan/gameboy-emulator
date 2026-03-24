@@ -111,22 +111,42 @@ where
         -> Result<(), Self::Error>;
 }
 
-pub struct Gameboy<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> {
+pub struct Gameboy<I: Input, S: Serial, A: Audio, LS: LoadSave> {
     input: I,
-    window: W,
     speed: f64,
     state: GBState<S, A>,
     load_save: LS,
+    total_cycle_counter: u128,
+    pub nanos_sleep: f64,
+    halt_time: u64,
+    audio_counter: u64,
+    was_previously_halted: bool,
+
+    last_ram_bank_enabled: bool,
+    now: SystemTime,
+    last_halt_cycle: SystemTime,
+    last_halt_cycle_counter: u128,
+    next_precise_gamepad_update: Option<u128>,
 }
 
-impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A, LS> {
-    pub fn new(input: I, window: W, serial: S, audio: A, load_save: LS, speed: f64) -> Self {
+impl<I: Input, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, S, A, LS> {
+    pub fn new(input: I, serial: S, audio: A, load_save: LS, speed: f64) -> Self {
         let mut gb = Self {
             input,
-            window,
             speed,
             state: GBState::<S, A>::new(serial, audio),
             load_save,
+            total_cycle_counter: 0,
+            nanos_sleep: 0.0,
+            halt_time: 0,
+            audio_counter: 0,
+            was_previously_halted: false,
+
+            last_ram_bank_enabled: false,
+            now: SystemTime::now(),
+            last_halt_cycle: SystemTime::now(),
+            last_halt_cycle_counter: 0,
+            next_precise_gamepad_update: None,
         };
 
         gb.load_save
@@ -165,122 +185,136 @@ impl<I: Input, W: Window, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, W, S, A,
         self.state.cpu.pc = 0x100;
     }
 
-    pub fn start(&mut self) {
-        let Self {
-            ref mut window,
-            ref mut input,
-            ref speed,
-            ref mut state,
-            ref load_save,
-        } = self;
+    pub fn update_joypad(&mut self) {
+        // TODO:
+        // if self.next_precise_gamepad_update.map_or(false, |c| c >= self.total_cycle_counter)
+        // {
+        self.next_precise_gamepad_update = self.input.update_events(self.total_cycle_counter);
 
-        let mut total_cycle_counter: u128 = 0;
-        let mut nanos_sleep: f64 = 0.0;
-        let mut halt_time = 0;
-        let mut audio_counter = 0;
-        let mut was_previously_halted = false;
+        let (action_button_reg, direction_button_reg, save_state) = (
+            self.input.get_action_gamepad_reg(),
+            self.input.get_direction_gamepad_reg(),
+            self.input.save_state(),
+        );
 
-        let mut last_ram_bank_enabled = false;
-        let mut now = SystemTime::now();
-        let last_halt_cycle = now;
-        let mut last_halt_cycle_counter: u128 = 0;
-        let mut next_precise_gamepad_update: Option<u128> = None;
-
-        while !state.is_stopped {
-            if was_previously_halted && !state.mem.halt {
-                let n = SystemTime::now();
-                log(
-                    LogLevel::HaltCycles,
-                    format!(
-                        "Halt cycles {} (system average speed: {}Hz)",
-                        halt_time,
-                        last_halt_cycle_counter as f32 / n.duration_since(last_halt_cycle).unwrap().as_secs_f32(),
-                    )
-                );
-                halt_time = 0;
-            }
-            was_previously_halted = state.mem.halt;
-            let c = if !state.mem.halt {
-                state.exec_opcode()
-            } else {
-                halt_time += 4;
-                4
-            };
-
-            last_halt_cycle_counter += c as u128;
-            state.cpu.dbg_cycle_counter += c;
-            total_cycle_counter += c as u128;
-            audio_counter += c;
-
-            if audio_counter >= 32 {
-                audio_counter -= 32;
-                state.mem.audio.next();
-            }
-
-            state.div_timer(c);
-            state.tima_timer(c);
-            state.update_display_interrupts(c);
-            state.check_interrupts();
-            state.mem.update_serial(total_cycle_counter);
-
-            nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS / *speed) as f64;
-
-            if nanos_sleep >= 0.0
-                || next_precise_gamepad_update.map_or(false, |c| c >= total_cycle_counter)
-            {
-                next_precise_gamepad_update = input.update_events(total_cycle_counter);
-
-                let (action_button_reg, direction_button_reg, save_state) = (
-                    input.get_action_gamepad_reg(),
-                    input.get_direction_gamepad_reg(),
-                    input.save_state(),
-                );
-
-                if save_state {
-                    if let Err(err) = load_save.save_state(&state) {
-                        elog(LogLevel::Error, format!("Failed save state: {:?}", err));
-                    }
-                }
-
-                if state.mem.joypad_is_action
-                    && (action_button_reg & (state.mem.joypad_reg >> 4))
-                        != (state.mem.joypad_reg >> 4)
-                    || (!state.mem.joypad_is_action
-                        && (direction_button_reg & state.mem.joypad_reg & 0b1111)
-                            != (state.mem.joypad_reg & 0b1111))
-                {
-                    state.mem.io[0x0f] |= 0b10000;
-                }
-
-                state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
-            }
-
-            if nanos_sleep > 0.0 {
-                if let Some(fb) = state.mem.display.get_redraw_request() {
-                    if let Some(WindowSignal::Exit) = window.update(fb) {
-                        break;
-                    }
-                }
-
-                // thread::sleep(time::Duration::from_nanos(1)); //nanos_sleep as u64));
-
-                let new_now = SystemTime::now();
-                nanos_sleep =
-                    nanos_sleep - new_now.duration_since(now).unwrap().as_nanos() as f64;
-                now = new_now;
-
-                if last_ram_bank_enabled && !state.mem.ram_bank_enabled {
-                    if let Err(err) = load_save.save_external_ram(state.mem.external_ram.as_ref()) {
-                        elog(
-                            LogLevel::Error,
-                            format!("Failed to save external RAM ({})", err),
-                        );
-                    }
-                }
-                last_ram_bank_enabled = state.mem.ram_bank_enabled;
+        if save_state {
+            if let Err(err) = self.load_save.save_state(&self.state) {
+                elog(LogLevel::Error, format!("Failed save state: {:?}", err));
             }
         }
 
-        state.mem.serial.close_serial();
+        if self.state.mem.joypad_is_action
+            && (action_button_reg & (self.state.mem.joypad_reg >> 4))
+                != (self.state.mem.joypad_reg >> 4)
+            || (!self.state.mem.joypad_is_action
+                && (direction_button_reg & self.state.mem.joypad_reg & 0b1111)
+                    != (self.state.mem.joypad_reg & 0b1111))
+        {
+            self.state.mem.io[0x0f] |= 0b10000;
+        }
+
+        self.state.mem.joypad_reg = direction_button_reg | (action_button_reg << 4);
     }
+
+    pub fn external_ram_save(&mut self) {
+        if self.last_ram_bank_enabled && !self.state.mem.ram_bank_enabled {
+            if let Err(err) = self.load_save.save_external_ram(self.state.mem.external_ram.as_ref()) {
+                elog(
+                    LogLevel::Error,
+                    format!("Failed to save external RAM ({})", err),
+                );
+            }
+        }
+        self.last_ram_bank_enabled = self.state.mem.ram_bank_enabled;
+    }
+
+    pub fn run_instr(&mut self) -> u64 {
+        let Self {
+            ref mut state,
+            ref mut total_cycle_counter,
+            ref mut halt_time,
+            ref mut audio_counter,
+            ref mut was_previously_halted,
+
+            ref mut last_halt_cycle_counter,
+            ref last_halt_cycle,
+            ..
+        } = self;
+
+
+        if *was_previously_halted && !state.mem.halt {
+            let n = SystemTime::now();
+            log(
+                LogLevel::HaltCycles,
+                format!(
+                    "Halt cycles {} (system average speed: {}Hz)",
+                    halt_time,
+                    *last_halt_cycle_counter as f32 / n.duration_since(*last_halt_cycle).unwrap().as_secs_f32(),
+                )
+            );
+            *halt_time = 0;
+        }
+        *was_previously_halted = state.mem.halt;
+        let c = if !state.mem.halt {
+            state.exec_opcode()
+        } else {
+            *halt_time += 4;
+            4
+        };
+
+        *last_halt_cycle_counter += c as u128;
+        state.cpu.dbg_cycle_counter += c;
+        *total_cycle_counter += c as u128;
+        *audio_counter += c;
+
+        if *audio_counter >= 32 {
+            *audio_counter -= 32;
+            state.mem.audio.next();
+        }
+
+        state.div_timer(c);
+        state.tima_timer(c);
+        state.update_display_interrupts(c);
+        state.check_interrupts();
+        state.mem.update_serial(*total_cycle_counter);
+
+        return c
+    }
+
+    pub fn run_until_next_sleep(&mut self) -> bool {
+        self.update_joypad();
+        self.external_ram_save();
+        while !self.state.is_stopped {
+            let c = self.run_instr();
+            self.nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS / self.speed) as f64;
+            if self.nanos_sleep > 0.0 {
+                return true
+            }
+        }
+        self.state.mem.serial.close_serial();
+        return false
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    pub fn sleep_and_draw(&mut self) -> Option<Box<[u32; 160*144]>>{
+        
+
+        thread::sleep(time::Duration::from_nanos(self.nanos_sleep as u64));
+
+        let new_now = SystemTime::now();
+        self.nanos_sleep =
+            self.nanos_sleep - new_now.duration_since(self.now).unwrap().as_nanos() as f64;
+        self.now = new_now;
+        return self.state.mem.display.get_redraw_request()
+    }
+
+    #[cfg(target_family = "wasm")]
+    pub fn sleep_and_draw(&mut self) -> Option<Box<[u32; 160*144]>>{
+        let new_now = SystemTime::now();
+        self.nanos_sleep =
+            self.nanos_sleep - new_now.duration_since(self.now).unwrap().as_nanos() as f64;
+        self.now = new_now;
+        return self.state.mem.display.get_redraw_request()
+    }
+
 }
