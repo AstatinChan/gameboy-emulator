@@ -1,17 +1,17 @@
-use rodio::{Sink, Source};
-use rodio::stream::{OutputStreamBuilder, OutputStream};
 use cpal::BufferSize;
+use rodio::stream::{OutputStream, OutputStreamBuilder};
+use rodio::{Sink, Source};
 
 use crate::audio::{MutableWave, SAMPLE_RATE};
 use crate::io::{Audio, Wave};
 use crate::logs::{log, LogLevel};
 use std::mem;
 
-#[cfg(not(target_family = "wasm"))]
-use std::time::{SystemTime};
 #[cfg(target_family = "wasm")]
-use crate::utils_wasm::{SystemTime};
+use crate::wasm::utils::SystemTime;
 use std::time::Duration;
+#[cfg(not(target_family = "wasm"))]
+use std::time::SystemTime;
 
 const BUFFER_SIZE: usize = 16;
 const RODIO_BUFFER_SIZE: usize = 2048;
@@ -50,10 +50,14 @@ impl SpeedFinder {
             if self.i == 1 {
                 return None;
             } else {
-                return Some(now.duration_since(self.buf[0]).unwrap().as_secs_f32() / (self.i - 1) as f32);
+                return Some(
+                    now.duration_since(self.buf[0]).unwrap().as_secs_f32() / (self.i - 1) as f32,
+                );
             }
         } else {
-            return Some(now.duration_since(previous).unwrap().as_secs_f32() / TIME_RING_BUFFER_SIZE as f32);
+            return Some(
+                now.duration_since(previous).unwrap().as_secs_f32() / TIME_RING_BUFFER_SIZE as f32,
+            );
         }
     }
 }
@@ -61,7 +65,7 @@ impl SpeedFinder {
 pub struct HeadlessAudio {}
 
 impl Audio for HeadlessAudio {
-    fn attach_wave(&mut self, _wave: MutableWave){}
+    fn attach_wave(&mut self, _wave: MutableWave) {}
     fn next(&mut self) {}
 }
 
@@ -99,7 +103,6 @@ impl<I: Iterator<Item = f32>> Iterator for RodioBuffer<I> {
     }
 }
 
-
 impl<I: Iterator<Item = f32>> Source for RodioBuffer<I> {
     fn current_span_len(&self) -> Option<usize> {
         None
@@ -120,7 +123,11 @@ impl<I: Iterator<Item = f32>> Source for RodioBuffer<I> {
 
 impl RodioAudio {
     pub fn new() -> Self {
-        let stream = OutputStreamBuilder::from_default_device().unwrap().with_buffer_size(BufferSize::Fixed(RODIO_BUFFER_SIZE as u32)).open_stream().unwrap();
+        let stream = OutputStreamBuilder::from_default_device()
+            .unwrap()
+            .with_buffer_size(BufferSize::Fixed(RODIO_BUFFER_SIZE as u32))
+            .open_stream()
+            .unwrap();
 
         let sink = Sink::connect_new(stream.mixer());
 
@@ -136,7 +143,7 @@ impl RodioAudio {
 }
 
 impl Audio for RodioAudio {
-    fn attach_wave(&mut self, wave: MutableWave){
+    fn attach_wave(&mut self, wave: MutableWave) {
         let wave = RodioWave(wave, 0);
 
         self.wave = Some(wave);
@@ -154,21 +161,39 @@ impl Audio for RodioAudio {
                     mem::swap(&mut self.buffer, &mut buffer);
                     if let Some(speed) = self.speed_finder.tick() {
                         let mut late_speedup: f32;
-                        let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
-                        late_speedup = ((rodio_buffers_sink_late - RODIO_BUFFER_SINK_LATE_EXPECTED).powi(3) / LATE_SPEEDUP_INTENSITY_INV) + 1.;
+                        let rodio_buffers_sink_late =
+                            self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
+                        late_speedup =
+                            ((rodio_buffers_sink_late - RODIO_BUFFER_SINK_LATE_EXPECTED).powi(3)
+                                / LATE_SPEEDUP_INTENSITY_INV)
+                                + 1.;
 
                         if late_speedup > SPEEDUP_SKIP_LIMIT {
                             while late_speedup > 1.0 {
-                                let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
-                                late_speedup = ((rodio_buffers_sink_late - RODIO_BUFFER_SINK_LATE_EXPECTED).powi(3) / LATE_SPEEDUP_INTENSITY_INV) + 1.;
+                                let rodio_buffers_sink_late = self.sink.len() as f32
+                                    / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
+                                late_speedup = ((rodio_buffers_sink_late
+                                    - RODIO_BUFFER_SINK_LATE_EXPECTED)
+                                    .powi(3)
+                                    / LATE_SPEEDUP_INTENSITY_INV)
+                                    + 1.;
 
                                 self.sink.skip_one();
                             }
                             late_speedup = 1.;
                         }
-                        let average_speed = (1./speed) / (2 * SAMPLE_RATE / BUFFER_SIZE as u32) as f32;
-                        let rodio_buffers_sink_late = self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
-                        log(LogLevel::AudioLatency, format!("audio sink latency: {}ms", (1000. * rodio_buffers_sink_late / ((2*SAMPLE_RATE) as f32 / RODIO_BUFFER_SIZE as f32))));
+                        let average_speed =
+                            (1. / speed) / (2 * SAMPLE_RATE / BUFFER_SIZE as u32) as f32;
+                        let rodio_buffers_sink_late =
+                            self.sink.len() as f32 / (RODIO_BUFFER_SIZE / BUFFER_SIZE) as f32;
+                        log(
+                            LogLevel::AudioLatency,
+                            format!(
+                                "audio sink latency: {}ms",
+                                (1000. * rodio_buffers_sink_late
+                                    / ((2 * SAMPLE_RATE) as f32 / RODIO_BUFFER_SIZE as f32))
+                            ),
+                        );
 
                         self.sink.set_speed(late_speedup * average_speed);
                     }

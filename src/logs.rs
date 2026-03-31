@@ -84,8 +84,6 @@ pub fn log(level: LogLevel, s: impl Into<String>) {
     }
 }
 
-
-
 #[cfg(target_family = "wasm")]
 pub fn elog(level: LogLevel, s: impl Into<String>) {
     if let Some(set) = LOG_LEVEL.get() {

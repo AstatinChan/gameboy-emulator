@@ -1,11 +1,11 @@
 // Very readable, much clean wow.
 
 use crate::consts::DISPLAY_UPDATE_SLEEP_TIME_MICROS;
+#[cfg(target_family = "wasm")]
+use crate::wasm::utils::SystemTime;
 use std::mem;
 #[cfg(not(target_family = "wasm"))]
-use std::time::{SystemTime};
-#[cfg(target_family = "wasm")]
-use crate::utils_wasm::{SystemTime};
+use std::time::SystemTime;
 
 const COLORS: [u32; 4] = [0x00e0f8d0, 0x0088c070, 0x346856, 0x00081820];
 

@@ -210,7 +210,6 @@ pub struct StaticRom {
     save_file: String,
 }
 
-
 impl StaticRom {
     pub fn new(save_file: impl Into<String>) -> Self {
         Self {
@@ -310,10 +309,7 @@ impl LoadSave for StaticRom {
         unimplemented!();
     }
 
-    fn load_state<S: Serial, A: Audio>(
-        &self,
-        _: &mut GBState<S, A>,
-    ) -> Result<(), std::io::Error> {
+    fn load_state<S: Serial, A: Audio>(&self, _: &mut GBState<S, A>) -> Result<(), std::io::Error> {
         unimplemented!();
     }
 }

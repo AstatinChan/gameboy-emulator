@@ -18,9 +18,9 @@ use winit::platform::wayland::EventLoopBuilderExtWayland;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
+use core::time::Duration;
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
-use core::time::Duration;
 
 const WIDTH: u32 = 160;
 const HEIGHT: u32 = 144;
@@ -78,7 +78,9 @@ impl DesktopWindow {
             let mut fb = Box::new([0; 160 * 144]);
             event_loop
                 .run(|event, elwt| {
-                    elwt.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_micros(1000000/60)));
+                    elwt.set_control_flow(winit::event_loop::ControlFlow::wait_duration(
+                        Duration::from_micros(1000000 / 60),
+                    ));
                     if let Event::WindowEvent {
                         event: WindowEvent::RedrawRequested,
                         ..

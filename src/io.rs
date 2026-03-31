@@ -1,8 +1,9 @@
-#[cfg(not(target_family = "wasm"))]
-use std::time::{SystemTime};
 #[cfg(target_family = "wasm")]
-use crate::utils_wasm::{SystemTime};
-use std::{thread, time};
+use crate::wasm::utils::SystemTime;
+#[cfg(not(target_family = "wasm"))]
+use std::thread;
+#[cfg(not(target_family = "wasm"))]
+use std::time::{Duration, SystemTime};
 
 use crate::audio::MutableWave;
 use crate::consts;
@@ -186,9 +187,6 @@ impl<I: Input, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, S, A, LS> {
     }
 
     pub fn update_joypad(&mut self) {
-        // TODO:
-        // if self.next_precise_gamepad_update.map_or(false, |c| c >= self.total_cycle_counter)
-        // {
         self.next_precise_gamepad_update = self.input.update_events(self.total_cycle_counter);
 
         let (action_button_reg, direction_button_reg, save_state) = (
@@ -218,7 +216,10 @@ impl<I: Input, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, S, A, LS> {
 
     pub fn external_ram_save(&mut self) {
         if self.last_ram_bank_enabled && !self.state.mem.ram_bank_enabled {
-            if let Err(err) = self.load_save.save_external_ram(self.state.mem.external_ram.as_ref()) {
+            if let Err(err) = self
+                .load_save
+                .save_external_ram(self.state.mem.external_ram.as_ref())
+            {
                 elog(
                     LogLevel::Error,
                     format!("Failed to save external RAM ({})", err),
@@ -229,56 +230,53 @@ impl<I: Input, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, S, A, LS> {
     }
 
     pub fn run_instr(&mut self) -> u64 {
-        let Self {
-            ref mut state,
-            ref mut total_cycle_counter,
-            ref mut halt_time,
-            ref mut audio_counter,
-            ref mut was_previously_halted,
-
-            ref mut last_halt_cycle_counter,
-            ref last_halt_cycle,
-            ..
-        } = self;
-
-
-        if *was_previously_halted && !state.mem.halt {
+        if self.was_previously_halted && !self.state.mem.halt {
             let n = SystemTime::now();
             log(
                 LogLevel::HaltCycles,
                 format!(
                     "Halt cycles {} (system average speed: {}Hz)",
-                    halt_time,
-                    *last_halt_cycle_counter as f32 / n.duration_since(*last_halt_cycle).unwrap().as_secs_f32(),
-                )
+                    self.halt_time,
+                    self.last_halt_cycle_counter as f32
+                        / n.duration_since(self.last_halt_cycle)
+                            .unwrap()
+                            .as_secs_f32(),
+                ),
             );
-            *halt_time = 0;
+            self.halt_time = 0;
         }
-        *was_previously_halted = state.mem.halt;
-        let c = if !state.mem.halt {
-            state.exec_opcode()
+        self.was_previously_halted = self.state.mem.halt;
+        let c = if !self.state.mem.halt {
+            self.state.exec_opcode()
         } else {
-            *halt_time += 4;
+            self.halt_time += 4;
             4
         };
 
-        *last_halt_cycle_counter += c as u128;
-        state.cpu.dbg_cycle_counter += c;
-        *total_cycle_counter += c as u128;
-        *audio_counter += c;
+        self.last_halt_cycle_counter += c as u128;
+        self.state.cpu.dbg_cycle_counter += c;
+        self.total_cycle_counter += c as u128;
+        self.audio_counter += c;
 
-        if *audio_counter >= 32 {
-            *audio_counter -= 32;
-            state.mem.audio.next();
+        if self
+            .next_precise_gamepad_update
+            .map_or(false, |c| c >= self.total_cycle_counter)
+        {
+            self.update_joypad();
         }
 
-        state.div_timer(c);
-        state.tima_timer(c);
-        state.update_display_interrupts(c);
-        state.check_interrupts();
-        state.mem.update_serial(*total_cycle_counter);
+        if self.audio_counter >= 32 {
+            self.audio_counter -= 32;
+            self.state.mem.audio.next();
+        }
 
-        return c
+        self.state.div_timer(c);
+        self.state.tima_timer(c);
+        self.state.update_display_interrupts(c);
+        self.state.check_interrupts();
+        self.state.mem.update_serial(self.total_cycle_counter);
+
+        return c;
     }
 
     pub fn run_until_next_sleep(&mut self) -> bool {
@@ -288,33 +286,33 @@ impl<I: Input, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, S, A, LS> {
             let c = self.run_instr();
             self.nanos_sleep += c as f64 * (consts::CPU_CYCLE_LENGTH_NANOS / self.speed) as f64;
             if self.nanos_sleep > 0.0 {
-                return true
+                return true;
             }
         }
         self.state.mem.serial.close_serial();
-        return false
+        return false;
     }
 
     #[cfg(not(target_family = "wasm"))]
-    pub fn sleep_and_draw(&mut self) -> Option<Box<[u32; 160*144]>>{
-        
-
-        thread::sleep(time::Duration::from_nanos(self.nanos_sleep as u64));
+    pub fn sleep_and_draw(&mut self) -> Option<Box<[u32; 160 * 144]>> {
+        thread::sleep(Duration::from_nanos(self.nanos_sleep as u64));
 
         let new_now = SystemTime::now();
         self.nanos_sleep =
             self.nanos_sleep - new_now.duration_since(self.now).unwrap().as_nanos() as f64;
         self.now = new_now;
-        return self.state.mem.display.get_redraw_request()
+        return self.state.mem.display.get_redraw_request();
     }
 
     #[cfg(target_family = "wasm")]
-    pub fn sleep_and_draw(&mut self) -> Option<Box<[u32; 160*144]>>{
+    pub fn sleep_and_draw(&mut self) -> Option<Box<[u32; 160 * 144]>> {
         let new_now = SystemTime::now();
         self.nanos_sleep =
             self.nanos_sleep - new_now.duration_since(self.now).unwrap().as_nanos() as f64;
+        if self.nanos_sleep < -1_000_000_000. {
+            self.nanos_sleep = self.nanos_sleep % 1_000_000_000. - 1_000_000_000.;
+        }
         self.now = new_now;
-        return self.state.mem.display.get_redraw_request()
+        return self.state.mem.display.get_redraw_request();
     }
-
 }

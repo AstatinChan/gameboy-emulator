@@ -273,7 +273,13 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             self.wram_01[addr as usize - 0xd000] = value;
         } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
             if self.display.ly < 90 && self.display.stat < 280 {
-                log(LogLevel::Debug, format!("Write to VRAM outside of HBLANK/VBLANK: (${:04x}) = ${:02x}", addr, value));
+                log(
+                    LogLevel::Debug,
+                    format!(
+                        "Write to VRAM outside of HBLANK/VBLANK: (${:04x}) = ${:02x}",
+                        addr, value
+                    ),
+                );
             }
             self.display.w(addr & !0x8000, value);
         } else if addr >= 0xff00 && addr < 0xff80 {

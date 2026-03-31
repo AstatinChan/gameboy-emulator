@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta charset="UTF-8">
+		<style>
+			canvas {
+				image-rendering: pixelated;
+				width: 100vw !important;
+				height: auto !important;
+				min-width: 300px !important;
+				min-height: auto !important;
+				max-width: 640px !important;
+				max-height: auto !important;
+			}
+			div#buttons {
+				width: 100vw !important;
+				height: auto !important;
+				min-width: 300px !important;
+				min-height: auto !important;
+				max-width: 640px !important;
+				max-height: auto !important;
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+			}
+			div#buttons-1 {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin: 100px 30px;
+			}
+			div#actions-2 {
+				display: flex;
+				justify-content: center;
+			}
+			button#gb-button-up,
+			button#gb-button-down,
+			button#gb-button-left,
+			button#gb-button-right {
+				width: 40px;
+				height: 40px;
+			}
+			button#gb-button-a,
+			button#gb-button-b {
+				width: 40px;
+				height: 40px;
+			}
+			button#gb-button-a {
+				position: relative;
+				bottom: 15px;
+				margin-left: 10px;
+			}
+			button#gb-button-b {
+				position: relative;
+				top: 15px;
+			}
+
+			button#gb-button-start,
+			button#gb-button-select {
+				padding: 5px 10px;
+			}
+
+			button#gb-button-start {
+				margin-left: 
+			}
+
+			body {
+				background-color: black;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				margin: 0;
+				height: 100vh;
+			}
+		</style>
+		<script>
+			const module = {};
+			/* Get the documentElement (<html>) to display the page in fullscreen */
+			var elem = document.documentElement;
+		
+			var is_fullscreen = false;
+			/* View in fullscreen */
+			function openFullscreen() {
+			  is_fullscreen = true;
+			  if (elem.requestFullscreen) {
+			    elem.requestFullscreen();
+			  } else if (elem.webkitRequestFullscreen) { /* Safari */
+			    elem.webkitRequestFullscreen();
+			  } else if (elem.msRequestFullscreen) { /* IE11 */
+			    elem.msRequestFullscreen();
+			  }
+			}
+
+			/* Close fullscreen */
+			function closeFullscreen() {
+			  is_fullscreen = false;
+			  if (document.exitFullscreen) {
+			    document.exitFullscreen();
+			  } else if (document.webkitExitFullscreen) { /* Safari */
+			    document.webkitExitFullscreen();
+			  } else if (document.msExitFullscreen) { /* IE11 */
+			    document.msExitFullscreen();
+			  }
+			}
+
+			function toggleFullscreen() {
+				if (is_fullscreen) {
+					closeFullscreen()
+				} else {
+					openFullscreen()
+				}
+			}
+		</script>
+		<script type="module" src="./script.js"></script>
+	</head>
+	<body onload="module.start_emulator()">
+		<canvas id="gb"></canvas>
+		<div id="buttons">
+			<div id="buttons-1">
+				<div id="directions">
+					<table>
+						<tr>
+							<td></td>
+							<td><button id="gb-button-up">&#9650;</button></td>
+							<td></td>
+						</tr>
+						<tr>
+							<td><button id="gb-button-left">&#9664;</button></td>
+							<td></td>
+							<td><button id="gb-button-right">&#9654;</td>
+						</tr>
+						<tr>
+							<td></td>
+							<td><button id="gb-button-down">&#9660;</button></td>
+							<td></td>
+						</tr>
+					</table>
+				</div>
+				<div id="actions-1">
+					<button id="gb-button-b">B</button>
+					<button id="gb-button-a">A</button>
+				</div>
+			</div>
+			<div id="actions-2">
+				<button id="gb-button-select">Select</button>
+				<button id="gb-button-start">Start</button>
+			</div>
+		</div>
+		<button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+	</body>
+</html>

@@ -14,16 +14,16 @@ pub mod state;
 use cpal::traits::StreamTrait;
 
 use std::collections::HashSet;
+use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
-use std::net::{TcpListener};
 
-use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, Keyboard, InputCombiner};
+use crate::desktop::audio::{HeadlessAudio, RodioAudio};
+use crate::desktop::input::{Gamepad, GamepadRecorder, GamepadReplay, InputCombiner, Keyboard};
 use crate::desktop::load_save::FSLoadSave;
 #[cfg(not(feature = "dynamic_rom"))]
 use crate::desktop::load_save::StaticRom;
-use crate::desktop::audio::{RodioAudio, HeadlessAudio};
 
-use crate::io::{Input, Serial, Window, Audio, Gameboy};
+use crate::io::{Audio, Gameboy, Input, Serial, Window};
 use crate::logs::{log, LogLevel};
 use clap::Parser;
 
@@ -111,7 +111,6 @@ pub fn main() {
     #[cfg(feature = "dynamic_rom")]
     let title = cli.title.clone();
 
-
     #[cfg(not(feature = "dynamic_rom"))]
     let rom = env!("GAME_ROM_ASSET");
 
@@ -146,25 +145,29 @@ pub fn main() {
         };
 
         let audio: Box<dyn Audio> = if cli.headless {
-            Box::new(HeadlessAudio{})
+            Box::new(HeadlessAudio {})
         } else {
             Box::new(RodioAudio::new())
         };
 
-        let serial: Box<dyn Serial> =
-            match (cli.fifo_input.clone(), cli.fifo_output.clone(), &listener, cli.connect.clone()) {
-                (_, _, Some(listener), _) => Box::new(desktop::serial::TcpSerial::new_listener(
-                    listener.try_clone().unwrap(),
-                    cli.no_response,
-                )),
-                (_, _, _, Some(addr)) => {
-                    Box::new(desktop::serial::TcpSerial::connect(addr, cli.no_response))
-                }
-                (Some(fifo_input), Some(fifo_output), _, _) => Box::new(
-                    desktop::serial::FIFOSerial::new(fifo_input, fifo_output, cli.no_response),
-                ),
-                _ => Box::new(desktop::serial::UnconnectedSerial {}),
-            };
+        let serial: Box<dyn Serial> = match (
+            cli.fifo_input.clone(),
+            cli.fifo_output.clone(),
+            &listener,
+            cli.connect.clone(),
+        ) {
+            (_, _, Some(listener), _) => Box::new(desktop::serial::TcpSerial::new_listener(
+                listener.try_clone().unwrap(),
+                cli.no_response,
+            )),
+            (_, _, _, Some(addr)) => {
+                Box::new(desktop::serial::TcpSerial::connect(addr, cli.no_response))
+            }
+            (Some(fifo_input), Some(fifo_output), _, _) => Box::new(
+                desktop::serial::FIFOSerial::new(fifo_input, fifo_output, cli.no_response),
+            ),
+            _ => Box::new(desktop::serial::UnconnectedSerial {}),
+        };
 
         let mut gamepad: Box<dyn Input> = if let Some(record_file) = cli.replay_input.clone() {
             Box::new(GamepadReplay::new(record_file))
@@ -173,7 +176,6 @@ pub fn main() {
                 Box::new(Gamepad::new()),
                 Box::new(Keyboard::new(keys)),
             ]))
-
         };
 
         if let Some(record_file) = cli.record_input.clone() {
@@ -191,13 +193,8 @@ pub fn main() {
             fs_load_save = fs_load_save.state_file(state_file);
         }
 
-        let mut gameboy = Gameboy::<_, _, _, _>::new(
-            gamepad,
-            serial,
-            audio,
-            fs_load_save,
-            cli.speed as f64,
-        );
+        let mut gameboy =
+            Gameboy::<_, _, _, _>::new(gamepad, serial, audio, fs_load_save, cli.speed as f64);
 
         if cli.load_state {
             gameboy.load_state().unwrap();
@@ -207,19 +204,18 @@ pub fn main() {
             gameboy.skip_bootrom();
         }
 
-
         while gameboy.run_until_next_sleep() {
-           if let Some(fb) = gameboy.sleep_and_draw() {
-               if let Some(io::WindowSignal::Exit) = window.update(fb) {
-                   break;
-               }
-           }
+            if let Some(fb) = gameboy.sleep_and_draw() {
+                if let Some(io::WindowSignal::Exit) = window.update(fb) {
+                    break;
+                }
+            }
         }
 
         if cli.stop_dump_state {
             gameboy.dump_state().unwrap();
         }
-        
+
         if !cli.restart_on_stop {
             break;
         }

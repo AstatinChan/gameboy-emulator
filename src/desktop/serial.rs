@@ -1,12 +1,12 @@
 use std::fs::File;
 use std::io::{self, Read, Write};
-use std::net::{TcpListener, TcpStream, Shutdown};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
-use crate::logs::{log, LogLevel};
 use crate::consts::CPU_CLOCK_SPEED;
 use crate::io::Serial;
+use crate::logs::{log, LogLevel};
 
 pub struct UnconnectedSerial {}
 
@@ -150,8 +150,16 @@ pub struct TcpSerial {
 }
 
 impl TcpSerial {
-    pub fn handle_stream(mut stream: TcpStream, tx: Sender<u8>, tx_close: Receiver<()>, rx: Receiver<u8>, rx_close: Receiver<()>) {
-        stream.set_nonblocking(true).expect("set_nonblocking call failed");
+    pub fn handle_stream(
+        mut stream: TcpStream,
+        tx: Sender<u8>,
+        tx_close: Receiver<()>,
+        rx: Receiver<u8>,
+        rx_close: Receiver<()>,
+    ) {
+        stream
+            .set_nonblocking(true)
+            .expect("set_nonblocking call failed");
 
         let mut stream_clone = stream.try_clone().unwrap();
         thread::spawn(move || loop {
@@ -163,7 +171,7 @@ impl TcpSerial {
                         if tx.send(byte[0]).is_err() {
                             break;
                         }
-                    },
+                    }
                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                         if tx_close.try_recv().is_ok() {
                             break;
@@ -171,8 +179,11 @@ impl TcpSerial {
                         continue;
                     }
                     Err(err) => {
-                            log(LogLevel::Infos, format!("Stream {:?} closed with error {:?}", &stream_clone, err));
-                            return
+                        log(
+                            LogLevel::Infos,
+                            format!("Stream {:?} closed with error {:?}", &stream_clone, err),
+                        );
+                        return;
                     }
                 }
             }
@@ -202,13 +213,21 @@ impl TcpSerial {
         let (tx, input) = mpsc::channel::<u8>();
         let (output, rx) = mpsc::channel::<u8>();
         thread::spawn(move || {
-                        listener.set_nonblocking(true).expect("Cannot set non-blocking");
+            listener
+                .set_nonblocking(true)
+                .expect("Cannot set non-blocking");
 
             loop {
                 match listener.accept() {
                     Ok((socket, addr)) => {
                         log(LogLevel::Infos, format!("Connection on {:?}", addr));
-                        Self::handle_stream(socket.try_clone().unwrap(), tx, close_input_recv, rx, close_output_recv);
+                        Self::handle_stream(
+                            socket.try_clone().unwrap(),
+                            tx,
+                            close_input_recv,
+                            rx,
+                            close_output_recv,
+                        );
                         let _ = close_listener_recv.recv();
                         let _ = socket.shutdown(Shutdown::Both);
                     }
