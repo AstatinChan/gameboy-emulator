@@ -1,4 +1,5 @@
-use pixels::{Pixels, SurfaceTexture};
+use pixels::wgpu::{Backend, Backends};
+use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use web_sys::HtmlCanvasElement;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
@@ -109,9 +110,11 @@ impl Emulator {
             .unwrap();
         let mut pixels = {
             let surface_texture = SurfaceTexture::new(WIDTH * 4, HEIGHT * 4, &window);
-            Pixels::new_async(WIDTH, HEIGHT, surface_texture)
-                .await
-                .unwrap()
+            PixelsBuilder::new(WIDTH, HEIGHT, surface_texture)
+            .wgpu_backend(Backends::GL)
+            .build_async()
+            .await
+            .unwrap()
         };
         let _ = event_loop.run(move |event, elwt| {
             if let Some(fb) = gameboy.sleep_and_draw() {
