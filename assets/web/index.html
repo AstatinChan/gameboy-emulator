@@ -65,13 +65,26 @@
 				margin-left: 
 			}
 
-			body {
+			body, main {
 				background-color: black;
 				display: flex;
 				flex-direction: column;
 				align-items: center;
 				margin: 0;
 				height: 100vh;
+			}
+
+			body {
+				justify-content: center;
+			}
+
+			button {
+				cursor: pointer;
+			}
+			button#start-game {
+				padding: 30px;
+				font-size: 20px;
+				cursor: pointer;
 			}
 		</style>
 		<script>
@@ -111,43 +124,51 @@
 					openFullscreen()
 				}
 			}
+
+			function start_game() {
+				document.getElementById("start-game").style = "display: none";
+				document.getElementById("gameboy").style = "";
+				module.start_emulator();
+			}
 		</script>
 		<script type="module" src="./script.js"></script>
 	</head>
 	<body>
-		<canvas id="gb"></canvas>
-		<div id="buttons">
-			<div id="buttons-1">
-				<div id="directions">
-					<table>
-						<tr>
-							<td></td>
-							<td><button id="gb-button-up">&#9650;</button></td>
-							<td></td>
-						</tr>
-						<tr>
-							<td><button id="gb-button-left">&#9664;</button></td>
-							<td></td>
-							<td><button id="gb-button-right">&#9654;</td>
-						</tr>
-						<tr>
-							<td></td>
-							<td><button id="gb-button-down">&#9660;</button></td>
-							<td></td>
-						</tr>
-					</table>
+		<main style="display:none;" id="gameboy">
+			<canvas id="gb"></canvas>
+			<div id="buttons">
+				<div id="buttons-1">
+					<div id="directions">
+						<table>
+							<tr>
+								<td></td>
+								<td><button id="gb-button-up">&#9650;</button></td>
+								<td></td>
+							</tr>
+							<tr>
+								<td><button id="gb-button-left">&#9664;</button></td>
+								<td></td>
+								<td><button id="gb-button-right">&#9654;</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td><button id="gb-button-down">&#9660;</button></td>
+								<td></td>
+							</tr>
+						</table>
+					</div>
+					<div id="actions-1">
+						<button id="gb-button-b">B</button>
+						<button id="gb-button-a">A</button>
+					</div>
 				</div>
-				<div id="actions-1">
-					<button id="gb-button-b">B</button>
-					<button id="gb-button-a">A</button>
+				<div id="actions-2">
+					<button id="gb-button-select">Select</button>
+					<button id="gb-button-start">Start</button>
 				</div>
 			</div>
-			<div id="actions-2">
-				<button id="gb-button-select">Select</button>
-				<button id="gb-button-start">Start</button>
-			</div>
-		</div>
-		<button onclick="toggleFullscreen()">Toggle Fullscreen</button>
-		<button onclick="module.start_emulator()">Start</button>
+			<button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+		</main>
+		<button id="start-game" onclick="start_game()">Start Game</button>
 	</body>
 </html>

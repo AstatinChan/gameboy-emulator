@@ -1,0 +1,7 @@
+# Web
+	- Improve buttons design (maybe make it more gameboylike ?)
+	- Allow to use multiple buttons at the same time on touch screen
+	- Unmute/Mute button
+	- Pause emulator button
+	- Fix ratio so it works on all screen size
+	- Savefile inside of localstorage ? (maybe even state inside of localstorage ?)

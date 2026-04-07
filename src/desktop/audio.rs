@@ -97,8 +97,6 @@ impl CpalAudio {
 
         let mut config = supported_config.config();
 
-        log(LogLevel::Debug, format!("Supported buffer sizes: {:?}\n", supported_config.buffer_size()));
-
         config.buffer_size = BufferSize::Fixed(CPAL_BUFFERSIZE);
         config.channels = 2;
 
@@ -115,17 +113,14 @@ impl CpalAudio {
                     if let Ok(value) = receiver.try_recv() {
                         data[i] = value;
                     } else {
-                        println!("Receiver contained {} elements out of the {} expected", i, data.len());
                         sample_received = i;
                         break;
                     }
                 }
-                log(LogLevel::Debug, format!("{:?}", samples_to_play_clone));
                 samples_to_play_clone.fetch_sub(sample_received, Ordering::SeqCst);
                 let samples_to_play = samples_to_play_clone.load(Ordering::SeqCst);
                 let latency_s = samples_to_play as f64 / (SAMPLE_RATE as f64);
                 let latency_in_buffers = samples_to_play as f64 / (data.len() as f64);
-                log(LogLevel::Infos, format!("Latency in buffers {}, Latency in seconds {}s", latency_in_buffers, latency_s));
                 if latency_in_buffers > 3. && latency_s > 0.1 {
                     let mut skipping_count = samples_to_play - 3*data.len();
                     log(LogLevel::Infos, format!("Audio Latency higher than 100ms, skipping {} samples", skipping_count));
