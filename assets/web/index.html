@@ -62,7 +62,7 @@
 			}
 
 			button#gb-button-start {
-				margin-left: 30px;
+				margin-left: 
 			}
 
 			body {
@@ -114,7 +114,7 @@
 		</script>
 		<script type="module" src="./script.js"></script>
 	</head>
-	<body onload="module.start_emulator()">
+	<body>
 		<canvas id="gb"></canvas>
 		<div id="buttons">
 			<div id="buttons-1">
@@ -148,5 +148,6 @@
 			</div>
 		</div>
 		<button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+		<button onclick="module.start_emulator()">Start</button>
 	</body>
 </html>
