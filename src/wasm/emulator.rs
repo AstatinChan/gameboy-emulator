@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::desktop;
-use crate::desktop::audio::HeadlessAudio;
+use crate::desktop::audio::CpalAudio;
 use crate::desktop::input::{Gamepad, InputCombiner, Keyboard};
 use crate::desktop::load_save::StaticRom;
 use crate::wasm::input::{WebButtonsInput, WebButtonsInputConfig};
@@ -59,7 +59,7 @@ impl Emulator {
 
         let keys: Arc<Mutex<HashSet<KeyCode>>> = Arc::new(Mutex::new(HashSet::new()));
 
-        let audio: Box<dyn Audio> = Box::new(HeadlessAudio {});
+        let audio: Box<dyn Audio> = Box::new(CpalAudio::new());
 
         let serial: Box<dyn Serial> = Box::new(desktop::serial::UnconnectedSerial {});
 

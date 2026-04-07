@@ -1,11 +1,16 @@
-use cpal::BufferSize;
+use cpal::platform::Stream;
+use cpal::traits::{HostTrait, DeviceTrait, StreamTrait};
+use cpal::{self, BufferSize};
 use rodio::stream::{OutputStream, OutputStreamBuilder};
 use rodio::{Sink, Source};
 
 use crate::audio::{MutableWave, SAMPLE_RATE};
 use crate::io::{Audio, Wave};
-use crate::logs::{log, LogLevel};
+use crate::logs::{elog, log, LogLevel};
 use std::mem;
+use std::sync::mpsc::{Sender, channel};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[cfg(target_family = "wasm")]
 use crate::wasm::utils::SystemTime;
@@ -14,6 +19,7 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 const BUFFER_SIZE: usize = 16;
+const CPAL_BUFFERSIZE: u32 = 4096;
 const RODIO_BUFFER_SIZE: usize = 2048;
 const RODIO_BUFFER_SINK_LATE_EXPECTED: f32 = 2.;
 const LATE_SPEEDUP_INTENSITY_INV: f32 = 2048.0;
@@ -67,6 +73,106 @@ pub struct HeadlessAudio {}
 impl Audio for HeadlessAudio {
     fn attach_wave(&mut self, _wave: MutableWave) {}
     fn next(&mut self) {}
+}
+
+pub struct CpalAudio {
+    _stream: Stream,
+    wave_sender: Sender<f32>,
+
+    left: bool,
+    wave: Option<MutableWave>,
+
+    samples_to_play: Arc<AtomicUsize>,
+}
+
+impl CpalAudio {
+    pub fn new() -> Self {
+        let host = cpal::default_host();
+        let device = host.default_output_device().expect("no output device available");
+        let mut supported_configs_range = device.supported_output_configs()
+            .expect("error while querying configs");
+        let supported_config = supported_configs_range.next()
+            .expect("No supported configs")
+            .with_sample_rate(cpal::SampleRate(SAMPLE_RATE));
+
+        let mut config = supported_config.config();
+
+        log(LogLevel::Debug, format!("Supported buffer sizes: {:?}\n", supported_config.buffer_size()));
+
+        config.buffer_size = BufferSize::Fixed(CPAL_BUFFERSIZE);
+        config.channels = 2;
+
+        let (sender, receiver) = channel::<f32>();
+
+        let samples_to_play = Arc::new(AtomicUsize::new(0));
+        let samples_to_play_clone = samples_to_play.clone();
+
+        let stream = device.build_output_stream(
+            &config,
+            move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                let mut sample_received = data.len();
+                for i in 0..data.len() {
+                    if let Ok(value) = receiver.try_recv() {
+                        data[i] = value;
+                    } else {
+                        println!("Receiver contained {} elements out of the {} expected", i, data.len());
+                        sample_received = i;
+                        break;
+                    }
+                }
+                log(LogLevel::Debug, format!("{:?}", samples_to_play_clone));
+                samples_to_play_clone.fetch_sub(sample_received, Ordering::SeqCst);
+                let samples_to_play = samples_to_play_clone.load(Ordering::SeqCst);
+                let latency_s = samples_to_play as f64 / (SAMPLE_RATE as f64);
+                let latency_in_buffers = samples_to_play as f64 / (data.len() as f64);
+                log(LogLevel::Infos, format!("Latency in buffers {}, Latency in seconds {}s", latency_in_buffers, latency_s));
+                if latency_in_buffers > 3. && latency_s > 0.1 {
+                    let mut skipping_count = samples_to_play - 3*data.len();
+                    log(LogLevel::Infos, format!("Audio Latency higher than 100ms, skipping {} samples", skipping_count));
+                    for i in 0..skipping_count {
+                        if let Err(_) = receiver.try_recv() {
+                            elog(LogLevel::Error, format!("Samples were fewer than expected when skipping samples (expected {}, got {}", samples_to_play, i));
+                            skipping_count = i;
+                            break;
+                        }
+                    }
+
+                    samples_to_play_clone.fetch_sub(skipping_count, Ordering::SeqCst);
+                }
+            },
+            |err| {
+                log(LogLevel::Error, format!("Cpal Stream error: {:?}", err))
+            },
+            None
+        ).unwrap();
+
+        stream.play().unwrap();
+
+        Self {
+            _stream: stream,
+            wave_sender: sender,
+
+            wave: None,
+            left: false,
+            samples_to_play,
+        }
+    }
+}
+
+impl Audio for CpalAudio {
+    fn attach_wave(&mut self, wave: MutableWave) {
+        self.wave = Some(wave);
+    }
+
+    fn next(&mut self) {
+        if let Some(wave) = &mut self.wave {
+            if let Some(v) = wave.next(self.left) {
+                let _ = self.wave_sender.send(v);
+                self.samples_to_play.fetch_add(1, Ordering::SeqCst);
+            }
+            self.left = !self.left;
+        }
+    }
 }
 
 pub struct RodioAudio {
