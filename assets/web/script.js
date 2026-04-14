@@ -38,6 +38,7 @@ export async function start_emulator() {
   if (!emu) {
     await init();
     emu = new Emulator();
+    emu.load_state();
   }
 
   return await step_emulator(gb_canvas);

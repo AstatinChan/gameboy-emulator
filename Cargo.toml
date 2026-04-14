@@ -18,8 +18,9 @@ winit_input_helper = "0.15"
 [target.wasm32-unknown-unknown.dependencies]
 console_error_panic_hook = "0.1.7"
 wasm-bindgen = "0.2.84"
-web-sys = { version = "0.3", features = ["default", "HtmlElement"] }
+web-sys = { version = "0.3", features = ["default", "HtmlElement", "Storage"] }
 wasm-bindgen-futures = "0.4.64"
+base64 = "0.22.1"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

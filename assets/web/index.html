@@ -28,7 +28,7 @@
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
-				margin: 100px 30px;
+				margin: 80px 30px;
 			}
 			div#actions-2 {
 				display: flex;
@@ -58,11 +58,17 @@
 
 			button#gb-button-start,
 			button#gb-button-select {
-				padding: 5px 10px;
+				padding: 10px 20px;
 			}
 
 			button#gb-button-start {
-				margin-left: 
+				margin-left: 10px;
+			}
+
+			button {
+				-webkit-user-select: none; /* Safari */
+				user-select: none;
+				-webkit-touch-callout: none;
 			}
 
 			body, main {
@@ -81,10 +87,22 @@
 			button {
 				cursor: pointer;
 			}
-			button#start-game {
+			button#start-game,
+			button#continue {
 				padding: 30px;
 				font-size: 20px;
 				cursor: pointer;
+				font-weight: bold;
+			}
+
+			button#continue {
+				margin-bottom: 20px;
+			}
+
+			button#continue:not([style*="display: none"]) + button#start-game {
+				padding: 15px;
+				font-size: 17px;
+				font-weight: normal;
 			}
 		</style>
 		<script>
@@ -127,8 +145,24 @@
 
 			function start_game() {
 				document.getElementById("start-game").style = "display: none";
+				document.getElementById("continue").style = "display: none";
 				document.getElementById("gameboy").style = "";
 				module.start_emulator();
+			}
+
+			function new_game() {
+				localStorage.clear()
+				start_game()
+			}
+
+			function continue_game() {
+				start_game()
+			}
+
+			function display_continue() {
+				if ("gameboy_state" in localStorage) {
+					document.getElementById("continue").style = "";
+				}
 			}
 		</script>
 		<script type="module" src="./script.js"></script>
@@ -169,6 +203,10 @@
 			</div>
 			<button onclick="toggleFullscreen()">Toggle Fullscreen</button>
 		</main>
-		<button id="start-game" onclick="start_game()">Start Game</button>
+		<button id="continue" style="display: none" onclick="continue_game()">Continue</button>
+		<button id="start-game" onclick="new_game()">New Game</button>
 	</body>
+	<script>
+		display_continue()
+	</script>
 </html>

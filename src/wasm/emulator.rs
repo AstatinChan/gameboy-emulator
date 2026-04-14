@@ -1,5 +1,5 @@
-use pixels::wgpu::{Backend, Backends};
-use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
+use pixels::wgpu::{Backends};
+use pixels::{PixelsBuilder, SurfaceTexture};
 use web_sys::HtmlCanvasElement;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 use crate::desktop;
 use crate::desktop::audio::CpalAudio;
 use crate::desktop::input::{Gamepad, InputCombiner, Keyboard};
-use crate::desktop::load_save::StaticRom;
+use crate::wasm::load_save::StaticRom;
 use crate::wasm::input::{WebButtonsInput, WebButtonsInputConfig};
 
 use crate::io::{Audio, Gameboy, Input, Serial};
@@ -78,7 +78,7 @@ impl Emulator {
             })),
         ]));
 
-        let fs_load_save = StaticRom::new("ABC");
+        let fs_load_save = StaticRom::new();
 
         let gameboy = Gameboy::<_, _, _, _>::new(gamepad, serial, audio, fs_load_save, 1.);
 
@@ -88,6 +88,10 @@ impl Emulator {
             title,
             keys,
         }
+    }
+
+    pub fn load_state(&mut self) {
+        self.gameboy.load_state().unwrap();
     }
 
     pub async fn run(self, canvas: HtmlCanvasElement) {
@@ -111,10 +115,10 @@ impl Emulator {
         let mut pixels = {
             let surface_texture = SurfaceTexture::new(WIDTH * 4, HEIGHT * 4, &window);
             PixelsBuilder::new(WIDTH, HEIGHT, surface_texture)
-            .wgpu_backend(Backends::GL)
-            .build_async()
-            .await
-            .unwrap()
+                .wgpu_backend(Backends::GL)
+                .build_async()
+                .await
+                .unwrap()
         };
         let _ = event_loop.run(move |event, elwt| {
             if let Some(fb) = gameboy.sleep_and_draw() {

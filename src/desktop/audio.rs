@@ -1,5 +1,5 @@
 use cpal::platform::Stream;
-use cpal::traits::{HostTrait, DeviceTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{self, BufferSize};
 use rodio::stream::{OutputStream, OutputStreamBuilder};
 use rodio::{Sink, Source};
@@ -8,8 +8,8 @@ use crate::audio::{MutableWave, SAMPLE_RATE};
 use crate::io::{Audio, Wave};
 use crate::logs::{elog, log, LogLevel};
 use std::mem;
-use std::sync::mpsc::{Sender, channel};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 
 #[cfg(target_family = "wasm")]
@@ -88,10 +88,14 @@ pub struct CpalAudio {
 impl CpalAudio {
     pub fn new() -> Self {
         let host = cpal::default_host();
-        let device = host.default_output_device().expect("no output device available");
-        let mut supported_configs_range = device.supported_output_configs()
+        let device = host
+            .default_output_device()
+            .expect("no output device available");
+        let mut supported_configs_range = device
+            .supported_output_configs()
             .expect("error while querying configs");
-        let supported_config = supported_configs_range.next()
+        let supported_config = supported_configs_range
+            .next()
             .expect("No supported configs")
             .with_sample_rate(cpal::SampleRate(SAMPLE_RATE));
 
