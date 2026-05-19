@@ -60,14 +60,14 @@ impl LoadSave for StaticRom {
     fn save_state<S: Serial, A: Audio>(&self, state: &GBState<S, A>) -> Result<(), std::io::Error> {
         let mut cursor = Cursor::new(vec![]);
         for addr in 0x8000..0xa000 {
-            cursor.write_all(&[state.mem.r(addr)])?;
+            cursor.write_all(&[state.r_mem(addr)])?;
         }
 
         cursor.write_all(state.mem.wram_00.as_ref())?;
         cursor.write_all(state.mem.wram_01.as_ref())?;
 
         for addr in 0xff00..0xff80 {
-            cursor.write_all(&[state.mem.r(addr)])?;
+            cursor.write_all(&[state.r_mem(addr)])?;
         }
 
         cursor.write_all(state.mem.hram.as_ref())?;
@@ -108,7 +108,7 @@ impl LoadSave for StaticRom {
                 let mut vram = Box::new([0; 0x2000]);
                 cursor.read_exact(vram.as_mut())?;
                 for i in 0x0000..0x2000 {
-                    state.mem.w(0x8000 + i, vram[i as usize]);
+                    state.w_mem(0x8000 + i, vram[i as usize]);
                 }
 
                 cursor.read_exact(state.mem.wram_00.as_mut())?;
@@ -117,7 +117,7 @@ impl LoadSave for StaticRom {
                 let mut io = [0; 0x80];
                 cursor.read_exact(io.as_mut())?;
                 for i in 0x00..0x80 {
-                    state.mem.w(0xff00 + i, io[i as usize]);
+                    state.w_mem(0xff00 + i, io[i as usize]);
                 }
 
                 cursor.read_exact(state.mem.hram.as_mut())?;

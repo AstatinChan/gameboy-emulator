@@ -6,14 +6,14 @@ use crate::state::{flag, reg, GBState};
 
 impl<S: Serial, A: Audio> GBState<S, A> {
     fn r_16b_from_pc(&mut self) -> u16 {
-        let p: u16 = self.mem.r(self.cpu.pc) as u16 | ((self.mem.r(self.cpu.pc + 1) as u16) << 8);
+        let p: u16 = self.r_mem(self.cpu.pc) as u16 | ((self.r_mem(self.cpu.pc + 1) as u16) << 8);
         self.cpu.pc += 2;
 
         p
     }
 
     fn r_8b_from_pc(&mut self) -> u8 {
-        let p = self.mem.r(self.cpu.pc);
+        let p = self.r_mem(self.cpu.pc);
         self.cpu.pc += 1;
 
         p
@@ -42,8 +42,8 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         // Load SP into an arbitrary position in memory
         let p = self.r_16b_from_pc();
 
-        self.mem.w(p, (self.cpu.sp & 0xff) as u8);
-        self.mem.w(p + 1, (self.cpu.sp >> 8) as u8);
+        self.w_mem(p, (self.cpu.sp & 0xff) as u8);
+        self.w_mem(p + 1, (self.cpu.sp >> 8) as u8);
         20
     }
 
@@ -54,28 +54,28 @@ impl<S: Serial, A: Audio> GBState<S, A> {
 
     fn ldnna(&mut self, nn: u16) -> () {
         // Load A into an arbitrary position in memory
-        self.mem.w(nn, self.cpu.r[reg::A as usize]);
+        self.w_mem(nn, self.cpu.r[reg::A as usize]);
         ()
     }
 
     fn ldann(&mut self, nn: u16) -> () {
         // Load A from an arbitrary position in memory
-        self.cpu.r[reg::A as usize] = self.mem.r(nn);
+        self.cpu.r[reg::A as usize] = self.r_mem(nn);
         ()
     }
 
     pub fn push(&mut self, x: u16) -> () {
         self.cpu.sp -= 2;
 
-        self.mem.w(self.cpu.sp, (x & 0xff) as u8);
+        self.w_mem(self.cpu.sp, (x & 0xff) as u8);
 
-        self.mem.w(self.cpu.sp + 1, (x >> 8) as u8);
+        self.w_mem(self.cpu.sp + 1, (x >> 8) as u8);
 
         ()
     }
 
     fn pop(&mut self) -> u16 {
-        let res = self.mem.r(self.cpu.sp) as u16 | ((self.mem.r(self.cpu.sp + 1) as u16) << 8);
+        let res = self.r_mem(self.cpu.sp) as u16 | ((self.r_mem(self.cpu.sp + 1) as u16) << 8);
 
         self.cpu.sp += 2;
 
@@ -191,10 +191,9 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         };
 
         if n1 & 0b001 == 1 {
-            self.cpu.r[reg::A as usize] = self.mem.r(self.cpu.r16(ptr_reg));
+            self.cpu.r[reg::A as usize] = self.r_mem(self.cpu.r16(ptr_reg));
         } else {
-            self.mem
-                .w(self.cpu.r16(ptr_reg), self.cpu.r[reg::A as usize]);
+            self.w_mem(self.cpu.r16(ptr_reg), self.cpu.r[reg::A as usize]);
         }
 
         if n1 & 0b110 == 0b100 {
@@ -834,7 +833,7 @@ impl<S: Serial, A: Audio> GBState<S, A> {
     }
 
     pub fn exec_opcode(&mut self) -> u64 {
-        let opcode = self.mem.r(self.cpu.pc);
+        let opcode = self.r_mem(self.cpu.pc);
 
         log(
             LogLevel::OpcodeDump,

@@ -87,7 +87,7 @@ impl LoadSave for FSLoadSave {
             let mut vram_dump_file = File::create(format!("{}.vram.dump", self.rom_file))?;
 
             for addr in 0x8000..0xa000 {
-                vram_dump_file.write_all(format!("{:02X} ", state.mem.r(addr)).as_bytes())?;
+                vram_dump_file.write_all(format!("{:02X} ", state.r_mem(addr)).as_bytes())?;
             }
         }
 
@@ -95,7 +95,7 @@ impl LoadSave for FSLoadSave {
             let mut wram_dump_file = File::create(format!("{}.wram.dump", self.rom_file))?;
 
             for addr in 0xc000..0xe000 {
-                wram_dump_file.write_all(format!("{:02X} ", state.mem.r(addr)).as_bytes())?;
+                wram_dump_file.write_all(format!("{:02X} ", state.r_mem(addr)).as_bytes())?;
             }
         }
 
@@ -103,7 +103,7 @@ impl LoadSave for FSLoadSave {
             let mut io_dump_file = File::create(format!("{}.io.dump", self.rom_file))?;
 
             for addr in 0xff00..0xff80 {
-                io_dump_file.write_all(format!("{:02X} ", state.mem.r(addr)).as_bytes())?;
+                io_dump_file.write_all(format!("{:02X} ", state.r_mem(addr)).as_bytes())?;
             }
         }
 
@@ -111,7 +111,7 @@ impl LoadSave for FSLoadSave {
             let mut hram_dump_file = File::create(format!("{}.hram.dump", self.rom_file))?;
 
             for addr in 0xff80..=0xffff {
-                hram_dump_file.write_all(format!("{:02X} ", state.mem.r(addr)).as_bytes())?;
+                hram_dump_file.write_all(format!("{:02X} ", state.r_mem(addr)).as_bytes())?;
             }
         }
 
@@ -134,14 +134,14 @@ impl LoadSave for FSLoadSave {
         if let Some(state_file) = &self.state_file {
             let mut state_file = File::create(state_file)?;
             for addr in 0x8000..0xa000 {
-                state_file.write_all(&[state.mem.r(addr)])?;
+                state_file.write_all(&[state.r_mem(addr)])?;
             }
 
             state_file.write_all(state.mem.wram_00.as_ref())?;
             state_file.write_all(state.mem.wram_01.as_ref())?;
 
             for addr in 0xff00..0xff80 {
-                state_file.write_all(&[state.mem.r(addr)])?;
+                state_file.write_all(&[state.r_mem(addr)])?;
             }
 
             state_file.write_all(state.mem.hram.as_ref())?;
@@ -170,7 +170,7 @@ impl LoadSave for FSLoadSave {
             let mut vram = Box::new([0; 0x2000]);
             state_file.read_exact(vram.as_mut())?;
             for i in 0x0000..0x2000 {
-                state.mem.w(0x8000 + i, vram[i as usize]);
+                state.w_mem(0x8000 + i, vram[i as usize]);
             }
 
             state_file.read_exact(state.mem.wram_00.as_mut())?;
@@ -179,7 +179,7 @@ impl LoadSave for FSLoadSave {
             let mut io = [0; 0x80];
             state_file.read_exact(io.as_mut())?;
             for i in 0x00..0x80 {
-                state.mem.w(0xff00 + i, io[i as usize]);
+                state.w_mem(0xff00 + i, io[i as usize]);
             }
 
             state_file.read_exact(state.mem.hram.as_mut())?;

@@ -216,88 +216,6 @@ impl<S: Serial, A: Audio> Memory<S, A> {
             self.io[0x0f] |= 0b1000;
         }
     }
-
-    pub fn r(&self, addr: u16) -> u8 {
-        if (addr < 0x100 || (addr >= 0x200 && addr < 0x900)) && self.boot_rom_on {
-            self.boot_rom[addr as usize]
-        } else if addr < 0x4000 {
-            self.rom[addr as usize]
-        } else if addr < 0x8000 {
-            self.rom[self.rom_bank as usize * 0x4000 + addr as usize - 0x4000 as usize]
-        } else if addr >= 0xa000 && addr < 0xc000 {
-            if self.ram_bank_enabled {
-                self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000]
-            } else {
-                0xff
-            }
-        } else if addr >= 0xc000 && addr < 0xd000 {
-            self.wram_00[addr as usize - 0xc000]
-        } else if addr >= 0xd000 && addr < 0xe000 {
-            self.wram_01[addr as usize - 0xd000]
-        } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
-            self.display.r(addr & !0x8000)
-        } else if addr >= 0xff00 && addr < 0xff80 {
-            self.r_io((addr & 0xff) as u8)
-        } else if addr >= 0xff80 && addr < 0xffff {
-            self.hram[addr as usize - 0xff80]
-        } else if addr == 0xffff {
-            self.interrupts_register
-        } else {
-            log(
-                LogLevel::Debug,
-                format!(
-                    "Trying to read at address 0x{:04x} which is unimplemented",
-                    addr
-                ),
-            );
-            0
-        }
-    }
-
-    pub fn w(&mut self, addr: u16, value: u8) {
-        if addr < 0x2000 {
-            self.ram_bank_enabled = value == 0x0a;
-        } else if addr >= 0x2000 && addr < 0x4000 {
-            if value == 0 {
-                self.rom_bank = 1
-            } else {
-                self.rom_bank = value & 0b1111111;
-            }
-        } else if addr >= 0x4000 && addr < 0x6000 {
-            self.ram_bank = value & 0b11;
-        } else if addr >= 0xa000 && addr < 0xc000 {
-            self.external_ram[self.ram_bank as usize * 0x2000 + addr as usize - 0xa000] = value;
-        } else if addr >= 0xc000 && addr < 0xd000 {
-            self.wram_00[addr as usize - 0xc000] = value;
-        } else if addr >= 0xd000 && addr < 0xe000 {
-            self.wram_01[addr as usize - 0xd000] = value;
-        } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
-            if self.display.ly < 90 && self.display.stat < 280 {
-                log(
-                    LogLevel::Debug,
-                    format!(
-                        "Write to VRAM outside of HBLANK/VBLANK: (${:04x}) = ${:02x}",
-                        addr, value
-                    ),
-                );
-            }
-            self.display.w(addr & !0x8000, value);
-        } else if addr >= 0xff00 && addr < 0xff80 {
-            self.w_io((addr & 0xff) as u8, value);
-        } else if addr >= 0xff80 && addr < 0xffff {
-            self.hram[addr as usize - 0xff80] = value;
-        } else if addr == 0xffff {
-            self.interrupts_register = value;
-        } else {
-            log(
-                LogLevel::Debug,
-                format!(
-                    "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
-                    addr, value
-                ),
-            );
-        }
-    }
 }
 
 pub struct GBState<S: Serial, A: Audio> {
@@ -329,7 +247,7 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         } else if r_i == 7 {
             self.cpu.r[6]
         } else if r_i == 6 {
-            self.mem.r(self.cpu.r16(reg::HL))
+            self.r_mem(self.cpu.r16(reg::HL))
         } else {
             panic!("r_i must be a 3 bits register input number")
         }
@@ -341,9 +259,91 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         } else if r_i == 7 {
             self.cpu.r[6] = value;
         } else if r_i == 6 {
-            self.mem.w(self.cpu.r16(reg::HL), value);
+            self.w_mem(self.cpu.r16(reg::HL), value);
         } else {
             panic!("r_i must be a 3 bits register input number")
+        }
+    }
+
+    pub fn w_mem(&mut self, addr: u16, value: u8) {
+        if addr < 0x2000 {
+            self.mem.ram_bank_enabled = value == 0x0a;
+        } else if addr >= 0x2000 && addr < 0x4000 {
+            if value == 0 {
+                self.mem.rom_bank = 1
+            } else {
+                self.mem.rom_bank = value & 0b1111111;
+            }
+        } else if addr >= 0x4000 && addr < 0x6000 {
+            self.mem.ram_bank = value & 0b11;
+        } else if addr >= 0xa000 && addr < 0xc000 {
+            self.mem.external_ram[self.mem.ram_bank as usize * 0x2000 + addr as usize - 0xa000] = value;
+        } else if addr >= 0xc000 && addr < 0xd000 {
+            self.mem.wram_00[addr as usize - 0xc000] = value;
+        } else if addr >= 0xd000 && addr < 0xe000 {
+            self.mem.wram_01[addr as usize - 0xd000] = value;
+        } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
+            if self.mem.display.ly < 90 && self.mem.display.stat < 280 {
+                log(
+                    LogLevel::Debug,
+                    format!(
+                        "Write to VRAM outside of HBLANK/VBLANK: (${:04x}) = ${:02x}. PC = ${:04x}. LY = {}. Stat = {}",
+                        addr, value, self.cpu.pc, self.mem.display.ly, self.mem.display.stat,
+                    ),
+                );
+            }
+            self.mem.display.w(addr & !0x8000, value);
+        } else if addr >= 0xff00 && addr < 0xff80 {
+            self.w_io((addr & 0xff) as u8, value);
+        } else if addr >= 0xff80 && addr < 0xffff {
+            self.mem.hram[addr as usize - 0xff80] = value;
+        } else if addr == 0xffff {
+            self.mem.interrupts_register = value;
+        } else {
+            log(
+                LogLevel::Debug,
+                format!(
+                    "Trying to write at address 0x{:04x} which is unimplemented (value: {:02x})",
+                    addr, value
+                ),
+            );
+        }
+    }
+
+    pub fn r_mem(&self, addr: u16) -> u8 {
+        if (addr < 0x100 || (addr >= 0x200 && addr < 0x900)) && self.mem.boot_rom_on {
+            self.mem.boot_rom[addr as usize]
+        } else if addr < 0x4000 {
+            self.mem.rom[addr as usize]
+        } else if addr < 0x8000 {
+            self.mem.rom[self.mem.rom_bank as usize * 0x4000 + addr as usize - 0x4000 as usize]
+        } else if addr >= 0xa000 && addr < 0xc000 {
+            if self.mem.ram_bank_enabled {
+                self.mem.external_ram[self.mem.ram_bank as usize * 0x2000 + addr as usize - 0xa000]
+            } else {
+                0xff
+            }
+        } else if addr >= 0xc000 && addr < 0xd000 {
+            self.mem.wram_00[addr as usize - 0xc000]
+        } else if addr >= 0xd000 && addr < 0xe000 {
+            self.mem.wram_01[addr as usize - 0xd000]
+        } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
+            self.mem.display.r(addr & !0x8000)
+        } else if addr >= 0xff00 && addr < 0xff80 {
+            self.r_io((addr & 0xff) as u8)
+        } else if addr >= 0xff80 && addr < 0xffff {
+            self.mem.hram[addr as usize - 0xff80]
+        } else if addr == 0xffff {
+            self.mem.interrupts_register
+        } else {
+            log(
+                LogLevel::Debug,
+                format!(
+                    "Trying to read at address 0x{:04x} which is unimplemented",
+                    addr
+                ),
+            );
+            0
         }
     }
 }
