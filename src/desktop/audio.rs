@@ -191,7 +191,7 @@ impl<W: Wave + Send + 'static> Iterator for RodioWave<W> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.1 += 1;
-        let left = self.1 % 2 == 0;
+        let left = self.1 % 2 != 0;
         let result = self.0.next(left);
 
         result
@@ -257,7 +257,7 @@ impl Audio for RodioAudio {
     fn next(&mut self) {
         if let Some(wave) = &mut self.wave {
             if let Some(v) = wave.next() {
-                self.buffer[self.buffer_i] = v;
+                self.buffer[self.buffer_i] = v / 2.;
                 self.buffer_i += 1;
 
                 if self.buffer_i == BUFFER_SIZE {

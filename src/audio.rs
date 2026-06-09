@@ -7,26 +7,24 @@ use std::sync::{Arc, Mutex};
 
 pub const SAMPLE_RATE: u32 = 65536;
 
-const SAMPLE_AVERAGING: usize = 1; //20;
-
 const SQUARE_WAVE_PATTERN_DUTY_0: [u8; 32] = [
     0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
     0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0,
 ];
 
 const SQUARE_WAVE_PATTERN_DUTY_1: [u8; 32] = [
-    0xd, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe,
-    0xf, 0xe, 0xf, 0xe, 0xd, 2, 0, 1, 0, 1, 0, 1, 2,
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+    0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 const SQUARE_WAVE_PATTERN_DUTY_2: [u8; 32] = [
-    0xd, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xf, 0xd, 2, 0, 1, 0, 1,
-    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2,
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 const SQUARE_WAVE_PATTERN_DUTY_3: [u8; 32] = [
-    0xd, 0xf, 0xe, 0xf, 0xe, 0xf, 0xe, 0xd, 2, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-    0, 1, 0, 1, 0, 2,
+    0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 const SQUARE_WAVE_PATTERNS: [[u8; 32]; 4] = [
@@ -143,36 +141,28 @@ impl io::Wave for Wave {
 
         let envelope = self.env_initial_volume + (self.env_direction * envelope_time);
 
-        let envelope_boundaries = if envelope > 16. {
-            16.
+        let envelope_boundaries = if envelope > 15. {
+            15.
         } else if envelope < 0. {
             0.
         } else {
             envelope
         };
 
-        let mut avg = 0.;
-
-        for n in 0..SAMPLE_AVERAGING {
-            if self.num_sample as i32 + n as i32 - SAMPLE_AVERAGING as i32 >= 0 {
-                avg += (self.wave_pattern[(((8. * 32768. / (SAMPLE_RATE as f32)
-                    * (self.num_sample + n - (SAMPLE_AVERAGING / 2)) as f32
-                    / period_value as f32)
-                    * 16.)
-                    % 32.) as u8 as usize] as f32
-                    * 2.
-                    - 16.)
-                    / 16.; // Before you ask, no I don't remember why it's so complicated :3
-            }
-        }
+        let mut res = (self.wave_pattern[
+            ((
+                (8. * 32768. / (SAMPLE_RATE as f32) * self.num_sample as f32 / period_value as f32)
+                * 16.
+            ) % 32.) as u8 as usize
+        ] as f32 / 15.) * 2. - 1.;
 
         if left {
-            avg = (self.left_volume as f32 / 8.) * avg;
+            res = (self.left_volume as f32 / 8.) * res;
         } else {
-            avg = (self.right_volume as f32 / 8.) * avg;
+            res = (self.right_volume as f32 / 8.) * res;
         }
 
-        Some((avg / SAMPLE_AVERAGING as f32) * envelope_boundaries / 32.)
+        Some(res * (envelope_boundaries + 0.5) as u8 as f32 / 15.)
     }
 }
 
@@ -221,7 +211,7 @@ impl NoiseWave {
             clock_shift,
             lsfr_width,
             clock_divider,
-            rng: 0x42,
+            rng: 0,
             last_i: 0,
             left_volume,
             right_volume,
@@ -256,8 +246,8 @@ impl io::Wave for NoiseWave {
 
         let envelope = self.env_initial_volume + (self.env_direction * envelope_time);
 
-        let envelope_boundaries = if envelope > 16. {
-            16.
+        let envelope_boundaries = if envelope > 15. {
+            15.
         } else if envelope < 0. {
             0.
         } else {
@@ -267,18 +257,21 @@ impl io::Wave for NoiseWave {
         let ns = ((262144. / ((clock_divider) * (2 << self.clock_shift) as f32)) / 32768.)
             * self.num_sample as f32;
 
-        let i = (ns as f32 * (32768 as f32 / SAMPLE_RATE as f32)) as usize;
+        let i = (ns as f32 * (65536 as f32 / SAMPLE_RATE as f32)) as usize;
 
         let up = self.rng & 1;
         if i != self.last_i {
             self.last_i = i;
 
-            self.rng >>= 1;
             if self.lsfr_width == 1 {
-                self.rng |= ((self.rng & 1) ^ ((self.rng >> 1) & 1)) << 7;
+                self.rng &= 0x7f;
+                self.rng |= (!((self.rng & 1) ^ ((self.rng >> 1) & 1)) & 1) << 7;
             } else {
-                self.rng |= ((self.rng & 1) ^ ((self.rng >> 1) & 1)) << 15;
+                self.rng &= 0x7fff;
+                self.rng |= (!((self.rng & 1) ^ ((self.rng >> 1) & 1)) & 1) << 15;
             }
+
+            self.rng >>= 1;
         }
 
         let mut res = up as f32 * 2. - 1.;
@@ -288,7 +281,7 @@ impl io::Wave for NoiseWave {
             res = (self.right_volume as f32 / 8.) * res;
         }
 
-        Some(res * envelope_boundaries / 64.)
+        Some(res * (envelope_boundaries + 0.5) as u8 as f32 / 15.)
     }
 }
 

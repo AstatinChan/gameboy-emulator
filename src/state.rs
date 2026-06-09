@@ -283,7 +283,7 @@ impl<S: Serial, A: Audio> GBState<S, A> {
         } else if addr >= 0xd000 && addr < 0xe000 {
             self.mem.wram_01[addr as usize - 0xd000] = value;
         } else if (addr >= 0x8000 && addr < 0xa000) || (addr >= 0xfe00 && addr < 0xfea0) {
-            if self.mem.display.ly < 90 && self.mem.display.stat < 280 {
+            if self.mem.display.ly < 0x90 && self.mem.display.stat < 280 && self.mem.display.is_on() {
                 log(
                     LogLevel::Debug,
                     format!(

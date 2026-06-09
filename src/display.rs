@@ -97,6 +97,10 @@ impl Display {
         }
     }
 
+    pub fn is_on(&self) -> bool {
+        return (self.lcdc & lcdc_flags::LCD_ENABLE) != 0;
+    }
+
     pub fn cls(&mut self) {
         self.framebuffer = Box::new([COLORS[0]; 160 * 144]);
     }

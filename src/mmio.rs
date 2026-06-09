@@ -247,7 +247,13 @@ impl<S: Serial, A: Audio> GBState<S, A> {
                 self.mem.audio.ch3.update(false);
                 self.mem.audio.ch4.update(false);
             }
-            0x40 => self.mem.display.lcdc = value,
+            0x40 => {
+                if (self.mem.display.lcdc & 0x80) != 0 && (value & 0x80 == 0) && self.mem.display.ly < 0x90 {
+                    log(LogLevel::Error, format!("WARNING: LCD Operations stopped outside of VBlank. This could cause damage to a real hardware. This is a bug in the ROM and should be fixed.\n\t(Debug infos: PC = ${:04x}. LY = {}. Stat = {})", self.cpu.pc, self.mem.display.ly, self.mem.display.stat));
+
+                }
+                self.mem.display.lcdc = value
+            },
             0x41 => {
                 if value & 0b01000000 != 0 {
                     self.mem.display.lcd_interrupt_mode = 3;
