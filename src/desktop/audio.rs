@@ -152,7 +152,7 @@ impl CpalAudio {
             wave_sender: sender,
 
             wave: None,
-            left: false,
+            left: true,
             samples_to_play,
         }
     }
