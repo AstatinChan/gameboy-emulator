@@ -294,8 +294,8 @@ impl<I: Input, S: Serial, A: Audio, LS: LoadSave> Gameboy<I, S, A, LS> {
     }
 
     #[cfg(not(target_family = "wasm"))]
-    pub fn sleep_and_draw(&mut self) -> Option<Box<[u32; 160 * 144]>> {
-        thread::sleep(Duration::from_nanos(self.nanos_sleep as u64));
+    pub fn sleep_and_draw(&mut self, add_sleep_ms: u64) -> Option<Box<[u32; 160 * 144]>> {
+        thread::sleep(Duration::from_nanos(self.nanos_sleep as u64 + (add_sleep_ms * 1_000_000)));
 
         let new_now = SystemTime::now();
         self.nanos_sleep =

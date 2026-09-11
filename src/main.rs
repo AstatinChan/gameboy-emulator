@@ -62,6 +62,11 @@ struct Cli {
     #[arg(short, long, default_value_t = 1.0)]
     speed: f32,
 
+    /// Add a minimum sleep amount. For faster computers this reduces the CPU usage, for slower ones
+    /// it can create lag
+    #[arg(short, long, default_value_t = 10)]
+    add_sleep_ms: u64,
+
     /// Skip bootrom (will start the execution at 0x100 with all registers empty
     #[arg(long, default_value_t = false)]
     skip_bootrom: bool,
@@ -205,7 +210,7 @@ pub fn main() {
         }
 
         while gameboy.run_until_next_sleep() {
-            if let Some(fb) = gameboy.sleep_and_draw() {
+            if let Some(fb) = gameboy.sleep_and_draw(cli.add_sleep_ms) {
                 if let Some(io::WindowSignal::Exit) = window.update(fb) {
                     break;
                 }
